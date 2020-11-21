@@ -18,6 +18,9 @@ async def on_ready():
 #only default command is ping
 @bot.command()
 async def ping(ctx, times: typing.Optional[int] = 1):
+	"""Tests whether the bot is responsive"""
+	if times > 10:
+		times = 10
 	reply = " ".join(['pong']*(times))
 	await ctx.send(reply)
 

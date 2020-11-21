@@ -1,4 +1,5 @@
 import discord
+import aiosqlite
 from discord.ext import commands
 
 class Notes(commands.Cog):

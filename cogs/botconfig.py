@@ -1,10 +1,11 @@
 from discord.ext import commands
 from discord.utils import get
 import checks
-class BotConfig(commands.Cog):
+class BotConfig(commands.Cog, command_attrs=dict(hidden=True)):
 	"""Cog for configuring the bot from within discord"""
 	def __init__(self, bot):
 		self.bot = bot
+		self.hidden = True
 			
 	async def cog_check(self, ctx):
 		"""Check if user has admin role"""
