@@ -35,4 +35,7 @@ if __name__ == '__main__':
     for extension in initial_extensions:
         bot.load_extension(extension)
 
-bot.run('NzQwMDg4MDg1OTg3MTk2OTc4.Xyj6vQ.KTmr0ar9mgroZuhHvX5JuxJX-xI', bot=True)
+with open("token.txt", "r") as token_file:
+    token = token_file.read()
+
+bot.run(token, bot=True)
