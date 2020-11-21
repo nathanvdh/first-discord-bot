@@ -1,12 +1,12 @@
 import discord
 from discord.ext import commands
 import typing
-import checks
 
 #load default extensions
-initial_extensions = [	'cogs.greetings',
+initial_extensions = [	'cogs.dad',
 						'cogs.botconfig',
-						'cogs.errorhandler'
+						'cogs.errorhandler',
+						'cogs.greetings'
 					 ]
 
 bot = commands.Bot(command_prefix='!', description='A bot by nacho')
@@ -24,7 +24,9 @@ async def ping(ctx, times: typing.Optional[int] = 1):
 #bot is only used in bot channel
 @bot.check
 async def bot_channel(ctx):
-	return ctx.channel == ctx.bot.get_channel(740557444417192037)
+	bot_channels = [ctx.bot.get_channel(740557444417192037), ctx.bot.get_channel(779607758826635314)]
+	
+	return ctx.channel in bot_channels
 
 if __name__ == '__main__':
     for extension in initial_extensions:
