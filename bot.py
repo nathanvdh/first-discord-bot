@@ -15,7 +15,7 @@ bot = commands.Bot(command_prefix='!', description='A bot by nacho')
 
 @bot.event
 async def on_ready():
-    print(f'\n\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
+    print(f'\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
 
 ##only default command is ping
 @bot.command()
