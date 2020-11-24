@@ -1,3 +1,5 @@
+## Pasted from: https://gist.github.com/EvieePy/d78c061a4798ae81be9825468fe146be#file-owner-py
+
 from discord.ext import commands
 from discord.utils import get
 import checks

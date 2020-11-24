@@ -1,3 +1,4 @@
+## Pasted from docs: https://discordpy.readthedocs.io/en/latest/ext/commands/cogs.html
 import discord
 from discord.ext import commands
 
