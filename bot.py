@@ -2,13 +2,15 @@ import discord
 from discord.ext import commands
 import asyncio
 import db
+import checks
 
 ##specify default extensions
 initial_extensions = [	'cogs.errorhandler',
 						'cogs.botconfig',
 						'cogs.greetings',
 						'cogs.dad',
-						'cogs.notes'
+						'cogs.notes',
+						'cogs.test-group-cog'
 					 ]
 
 bot = commands.Bot(command_prefix='!', description='A bot by nacho')
@@ -20,14 +22,9 @@ async def on_ready():
 ##only default command is ping
 @bot.command()
 async def ping(ctx):
-	await ctx.send(pong)
+	await ctx.send('pong')
 
-##bot is only used in bot channel
-@bot.check
-async def bot_channel(ctx):
-	bot_channels = [ctx.bot.get_channel(740557444417192037), ctx.bot.get_channel(779607758826635314)]
-	
-	return ctx.channel in bot_channels
+bot.add_check(checks.bot_channel_only)
 
 if __name__ == '__main__':
     for extension in initial_extensions:

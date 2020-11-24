@@ -1,3 +1,5 @@
+## Pasted from: https://gist.github.com/EvieePy/7822af90858ef65012ea500bcecf1612
+
 import discord
 import traceback
 import sys
@@ -44,6 +46,12 @@ class ErrorHandler(commands.Cog):
 
         elif isinstance(error, checks.NotAdmin):
             await ctx.send('Hey! Only Admin can do that!')
+
+        elif isinstance(error, checks.NotInBotChannel):
+            msg = ('You cannot use commands outside of bot channels, except for !help here in DMs.\n'
+                  'The allowed bot channels are:\n{}')
+            channels = ['<#' + s + ">" for s in map(str,checks.bot_channel_ids)]
+            await ctx.author.send(msg.format('\n'.join(channels)))
 
         else:
             print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
