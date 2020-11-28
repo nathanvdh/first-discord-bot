@@ -62,6 +62,10 @@ class Notes(commands.Cog, name='notes'):
 	
 	@note.command()
 	async def add(self, ctx, name: str, *, content: str):
+		if name in ("add", "remove", "list", "info",):
+			await ctx.send("I won't let you do that")
+			return
+
 		if await self.retrieve_note(ctx, name) is None:
 			sql = """INSERT INTO notes(guild_id, name, content, date_added, user_added)
 				 	 VALUES(?, ?, ?, datetime('now'), ?);"""
