@@ -11,8 +11,10 @@ initial_extensions = [	'cogs.errorhandler',
 						'cogs.dad',
 						'cogs.notes',
 					 ]
+with open("owner.txt", "r") as owner_file:
+	owner = owner_file.read()
 
-bot = commands.Bot(command_prefix='!', description='A bot by nacho')
+bot = commands.Bot(command_prefix='!', description='A bot by nacho', owner_id=int(owner))
 
 @bot.event
 async def on_ready():

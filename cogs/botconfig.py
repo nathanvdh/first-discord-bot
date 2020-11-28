@@ -11,7 +11,7 @@ class BotConfig(commands.Cog, name='botconfig'):#, command_attrs=dict(hidden=Tru
 			
 	async def cog_check(self, ctx):
 		"""Check if user has admin role"""
-		return checks.is_admin(ctx)
+		return await self.bot.is_owner(ctx.author)
 
 	async def cog_command_error(self, ctx, error):
 		if hasattr(ctx.command, 'on_error'):
@@ -45,6 +45,15 @@ class BotConfig(commands.Cog, name='botconfig'):#, command_attrs=dict(hidden=Tru
 		self.bot.unload_extension("cogs."+cog)
 		self.bot.load_extension("cogs."+cog)
 		await ctx.send('**`Successfully reloaded {}`**'.format(cog))
+
+	@commands.command()
+	async def shutdown(self, ctx):
+		await self.bot.logout()
+
+	@commands.command()
+	async def rename(self, ctx, *, name: str):
+		await self.bot.user.edit(username=name)
+		await ctx.send('**`Renamed bot to {}`**'.format(name))
 
 def setup(bot):
 	bot.add_cog(BotConfig(bot))

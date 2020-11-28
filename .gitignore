@@ -2,3 +2,4 @@
 *.pyc
 token.txt
 *.db
+owner.txt
