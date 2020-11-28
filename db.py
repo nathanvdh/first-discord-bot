@@ -5,7 +5,7 @@ import traceback
 DB_PATH = "database.db"
 
 async def create_connection():
-    """ create a database connection to a SQLite database """
+    """ Create a database connection to a SQLite database """
     conn = None
     try:
         conn = await aiosqlite.connect(DB_PATH)
@@ -27,9 +27,23 @@ async def fetchone(sql, values=()):
 	conn = await create_connection()
 	try:
 		cursor = await conn.execute(sql, values)
-	except Error as r:
+	except Error as e:
 		print(e)
 	result = await cursor.fetchone()
 	await cursor.close()
 	await conn.close()
-	return result[0]
+	if result:
+		return result[0]
+	else:
+		return None
+
+async def fetchall(sql, values=()):
+	conn = await create_connection()
+	try:
+		cursor = await conn.execute(sql, values)
+	except Error as e:
+		print(e)
+	result = await cursor.fetchall()
+	await cursor.close()
+	await conn.close()
+	return result

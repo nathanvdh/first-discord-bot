@@ -1,11 +1,11 @@
 import discord
 from discord.ext import commands
-#import aiosqlite
+from tabulate import tabulate
 import db
 #import asyncio
 
 
-class Notes(commands.Cog):
+class Notes(commands.Cog, name='notes'):
 	"""A notes cog, like many telegram bots have"""
 	def __init__(self, bot):
 		self.bot = bot
@@ -21,24 +21,94 @@ class Notes(commands.Cog):
 			user_added text);"""
 		await db.write(sql)
 
-	@commands.command()
-	async def addnote(self, ctx, name: str, *, content: str):
-		sql = """INSERT INTO notes(guild_id, name, content, date_added, user_added)
-				 VALUES(?, ?, ?, datetime('now'), ?);"""
-		vals = (str(ctx.guild.id), name, content, str(ctx.author.id))
-		await db.write(sql, vals)
-
-	@commands.command()
-	async def note(self, ctx, name: str):
+	async def retrieve_note(self, ctx, name: str):
 		sql = """SELECT content FROM notes
+			 	WHERE name = ?
+			 	AND guild_id = ? ;"""
+		vals = (name, str(ctx.guild.id))
+		return await db.fetchone(sql, vals)
+
+	async def retrieve_guild_note_names(self, ctx):
+		sql = """SELECT name FROM notes
+				 WHERE guild_id = ? 
+				 ORDER BY name ;"""
+		vals = (str(ctx.guild.id),)
+		return await db.fetchall(sql, vals)
+
+	async def retrieve_guild_note_infos(self, ctx, name: str):
+		sql = """SELECT name,
+						date_added,
+						user_added
+				 FROM notes
+				 WHERE guild_id = ?
+				 AND   name = ?
+				 ORDER BY name ;"""
+		vals = (str(ctx.guild.id), name)
+		note_infos = await db.fetchall(sql, vals)
+		if note_infos:
+			note_infos = list(note_infos[0])
+		return note_infos
+
+	@commands.group(invoke_without_command=True)
+	async def note(self, ctx, note_name: str=""):
+			if note_name == "":
+				await ctx.send_help(ctx.command)
+			else:
+				content = await self.retrieve_note(ctx, note_name)
+				if content is None:
+					await ctx.send('That note does not exist!')
+				else:
+					await ctx.send(content)
+	
+	@note.command()
+	async def add(self, ctx, name: str, *, content: str):
+		if await self.retrieve_note(ctx, name) is None:
+			sql = """INSERT INTO notes(guild_id, name, content, date_added, user_added)
+				 	 VALUES(?, ?, ?, datetime('now'), ?);"""
+			vals = (str(ctx.guild.id), name, content, str(ctx.author.id))
+			success = 'Added new'
+		else:
+			sql = """UPDATE notes
+					 SET content = ?,
+					 	 date_added = datetime('now'),
+					 	 user_added = ?
+					 WHERE name = ?
+					 AND guild_id = ? ;"""
+			vals = (content, str(ctx.author.id), name, str(ctx.guild.id))
+			success = 'Updated'
+		await db.write(sql, vals)
+		await ctx.send('**`{0} note "{1}"`**'.format(success, name))
+
+	@note.command()
+	async def remove(self, ctx, name: str):
+		sql = """DELETE FROM notes
 				 WHERE name = ?
 				 AND guild_id = ? ;"""
 		vals = (name, str(ctx.guild.id))
-		content = await db.fetchone(sql, vals)
-		await ctx.send(content)
+		await db.write(sql, vals)
+		await ctx.send('**`Deleted note "{}"`**'.format(name))
 
+	@note.command(aliases=['notes'])
+	async def list(self, ctx):
+		note_list = await self.retrieve_guild_note_names(ctx)
+		msg = 'Notes:\n' + '\n'.join(tup[0] for tup in note_list)
+		await ctx.send(msg)
 
+	@note.command()
+	async def info(self, ctx, note_name: str):
+		note_infos = await self.retrieve_guild_note_infos(ctx, note_name)
+		if not note_infos:
+			await ctx.send('That note does not exist!')
+		else:
+			user = self.bot.get_user(int(note_infos[2]))
+			note_infos[2] = user.name + '#' + str(user.discriminator)
+			head = ["Note name", "Added on", "Added by"]
+			msg = '```' + tabulate([note_infos], headers=head) + '```'
+			await ctx.send(msg, allowed_mentions=discord.AllowedMentions.none())
 
+	@commands.command()
+	async def notes(self, ctx):
+		await self.bot.get_command('note list').callback(self, ctx)
 
 def setup(bot):
 	bot.add_cog(Notes(bot))
