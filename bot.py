@@ -10,7 +10,6 @@ initial_extensions = [	'cogs.errorhandler',
 						'cogs.greetings',
 						'cogs.dad',
 						'cogs.notes',
-						'cogs.test-group-cog'
 					 ]
 
 bot = commands.Bot(command_prefix='!', description='A bot by nacho')
@@ -22,7 +21,7 @@ async def on_ready():
 ##only default command is ping
 @bot.command()
 async def ping(ctx):
-	await ctx.send(f'{round(bot.latency,1)}')
+	await ctx.send(f'{round(bot.latency*1000)} ms')
 
 bot.add_check(checks.bot_channel_only)
 
