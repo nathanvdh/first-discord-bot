@@ -6,7 +6,7 @@ import sys
 import checks
 from discord.ext import commands
 
-class ErrorHandler(commands.Cog):
+class ErrorHandler(commands.Cog, name='errorhandler'):
 
     def __init__(self, bot):
         self.bot = bot
