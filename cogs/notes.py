@@ -57,7 +57,7 @@ class Notes(commands.Cog, name='notes'):
 			if content is None:
 				await ctx.send('That note does not exist!')
 			else:
-				await ctx.send(content, , allowed_mentions=discord.AllowedMentions.none())
+				await ctx.send(content, allowed_mentions=discord.AllowedMentions.none())
 	
     
 	@note.command()
