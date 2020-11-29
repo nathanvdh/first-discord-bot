@@ -2,7 +2,7 @@
 
 from discord.ext import commands
 from discord.utils import get
-import checks
+
 class BotConfig(commands.Cog, name='botconfig'):#, command_attrs=dict(hidden=True)):
 	"""Cog for configuring the bot from within discord"""
 	def __init__(self, bot):
@@ -21,11 +21,10 @@ class BotConfig(commands.Cog, name='botconfig'):#, command_attrs=dict(hidden=Tru
 		else:
 			await ctx.send(f'**`ERROR:`** {type(error).__name__} - {error}')
 
-	@commands.group()
+	@commands.group(invoke_without_command=True)
 	async def cog(self, ctx):
 		"""Manage cogs"""
-		if ctx.invoked_subcommand is None:
-			await ctx.send_help(ctx.command)
+		await ctx.send_help(ctx.command)
 
 	@cog.command(name='load')
 	async def load_cog(self, ctx, *, cog: str):
