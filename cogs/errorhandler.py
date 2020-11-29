@@ -44,13 +44,11 @@ class ErrorHandler(commands.Cog, name='errorhandler'):
             except discord.HTTPException:
                 pass
 
-        elif isinstance(error, checks.NotAdmin):
-            await ctx.send('Hey! Only Admin can do that!')
-
         elif isinstance(error, checks.NotInBotChannel):
             msg = ('You cannot use commands outside of bot channels, except for !help here in DMs.\n'
                   'The allowed bot channels are:\n{}')
-            channels = ['<#' + s + ">" for s in map(str,checks.bot_channel_ids)]
+            
+            channels = ['<#' + s + ">" for s in await checks.get_bot_channels_string_list(ctx.guild.id)]
             await ctx.author.send(msg.format('\n'.join(channels)))
 
         else:

@@ -1,25 +1,27 @@
 import discord
 from discord.ext import commands
 from discord.utils import get
-    
-bot_channel_ids = (740557444417192037, 779607758826635314)
+import db
 
 class NotInBotChannel(commands.CheckFailure):
     pass
 
-class NotAdmin(commands.CheckFailure):
-	pass
+async def get_bot_channels_string_list(guild_id):
+    bot_channel_ids = await db.fetchone("SELECT bot_channels FROM guild_prefs WHERE guild_id = ? ;", (guild_id,))
+    if not bot_channel_ids:
+        return bot_channel_ids
+    else:
+        return list(filter(None,bot_channel_ids.split(',')))
 
-def bot_channel_only(ctx):
+async def bot_channel_only(ctx):
     if ctx.guild is None:
     	if ctx.invoked_with == "help":
     		return True
-    if ctx.channel in map(ctx.bot.get_channel, bot_channel_ids):
+    
+    bot_channel_ids = await get_bot_channels_string_list(ctx.guild.id)
+    if not bot_channel_ids:
+        return True
+    bot_channel_ids_list_ints = [int(x) for x in bot_channel_ids]
+    if ctx.channel in [ctx.bot.get_channel(id) for id in bot_channel_ids_list_ints]:
         return True
     raise NotInBotChannel()
-
-def is_admin(ctx):
-	admin = get(ctx.guild.roles, name='Admin')
-	if admin not in ctx.author.roles:
-		raise NotAdmin()
-	return True
