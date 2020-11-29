@@ -33,5 +33,14 @@ class Moderation(commands.Cog, name='moderation'):
 		print(bot_channel_ids_new)
 		await db.write("UPDATE guild_prefs SET bot_channels = ? WHERE guild_id = ? ;", (bot_channel_ids_new, ctx.guild.id))
 
+	@commands.has_guild_permissions(manage_guild=True)
+	@settings.command()
+	async def prefix(self, ctx, new_prefix: str):
+	"""Defines a new prefix for the bot"""
+		if len(new_prefix) > 5:
+			ctx.send('Prefix cannot be longer than 5 characters')
+			return
+		await db.write("UPDATE guild_prefs SET prefix = ? WHERE guild_id = ?", (new_prefix, ctx.guild.id))
+
 def setup(bot):
     bot.add_cog(Moderation(bot))
