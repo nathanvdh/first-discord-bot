@@ -81,7 +81,7 @@ class Notes(commands.Cog, name='notes'):
 			vals = (content, str(ctx.author.id), name, str(ctx.guild.id))
 			success = 'Updated'
 		await db.write(sql, vals)
-		await ctx.send('**`{0} note "{1}"`**'.format(success, name))
+		await ctx.send('**`{0} {1} note "{2}"`**'.format(ctx.author.name, success, name))
 
 	@note.command(aliases=['delete'])
 	async def remove(self, ctx, name: str):
