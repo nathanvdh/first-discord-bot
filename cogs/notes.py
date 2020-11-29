@@ -59,7 +59,7 @@ class Notes(commands.Cog, name='notes'):
 			else:
 				await ctx.send(content, allowed_mentions=discord.AllowedMentions.none())
 	
-    @commands.has_guild_permissions(manage_messages=True)
+	@commands.has_guild_permissions(manage_messages=True)
 	@note.command()
 	async def add(self, ctx, name: str, *, content: str):
 		"""Adds a note to this server"""
@@ -84,7 +84,7 @@ class Notes(commands.Cog, name='notes'):
 		await db.write(sql, vals)
 		await ctx.send('**`{0} {1} note "{2}"`**'.format(ctx.author.name, success, name))
     
-    @commands.has_guild_permissions(manage_messages=True)
+	@commands.has_guild_permissions(manage_messages=True)
 	@note.command(aliases=['delete'])
 	async def remove(self, ctx, name: str):
 		"""Removes a note from this server"""
