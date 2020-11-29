@@ -2,8 +2,6 @@ import discord
 from discord.ext import commands
 from tabulate import tabulate
 import db
-#import asyncio
-
 
 class Notes(commands.Cog, name='notes'):
 	"""A notes cog, like many telegram bots have"""
@@ -51,18 +49,20 @@ class Notes(commands.Cog, name='notes'):
 
 	@commands.group(invoke_without_command=True)
 	async def note(self, ctx, note_name: str=""):
-			if note_name == "":
-				await ctx.send_help(ctx.command)
+		"""Retrieves a note"""
+		if not note_name:
+			await ctx.send_help(ctx.command)
+		else:
+			content = await self.retrieve_note(ctx, note_name)
+			if content is None:
+				await ctx.send('That note does not exist!')
 			else:
-				content = await self.retrieve_note(ctx, note_name)
-				if content is None:
-					await ctx.send('That note does not exist!')
-				else:
-					await ctx.send(content)
+				await ctx.send(content)
 	
 	@note.command()
 	async def add(self, ctx, name: str, *, content: str):
-		if name in ("add", "remove", "list", "info",):
+		"""Adds a note to this server"""
+		if name in ("add", "remove", "list", "info", "all"):
 			await ctx.send("I won't let you do that")
 			return
 
@@ -83,23 +83,29 @@ class Notes(commands.Cog, name='notes'):
 		await db.write(sql, vals)
 		await ctx.send('**`{0} note "{1}"`**'.format(success, name))
 
-	@note.command()
+	@note.command(aliases=['delete'])
 	async def remove(self, ctx, name: str):
-		sql = """DELETE FROM notes
+		"""Removes a note from this server"""
+		if not await self.retrieve_note(ctx, name):
+			await ctx.send('That note does not exist!')
+		else:
+			sql = """DELETE FROM notes
 				 WHERE name = ?
 				 AND guild_id = ? ;"""
-		vals = (name, str(ctx.guild.id))
-		await db.write(sql, vals)
-		await ctx.send('**`Deleted note "{}"`**'.format(name))
+			vals = (name, str(ctx.guild.id))
+			await db.write(sql, vals)
+			await ctx.send('**`Deleted note "{}"`**'.format(name))
 
-	@note.command(aliases=['notes'])
+	@note.command(aliases=['all'])
 	async def list(self, ctx):
+		"""Lists all the notes in this server"""
 		note_list = await self.retrieve_guild_note_names(ctx)
 		msg = 'Notes:\n' + '\n'.join(tup[0] for tup in note_list)
 		await ctx.send(msg)
 
 	@note.command()
 	async def info(self, ctx, note_name: str):
+		"""Shows information about a note"""
 		note_infos = await self.retrieve_guild_note_infos(ctx, note_name)
 		if not note_infos:
 			await ctx.send('That note does not exist!')
@@ -109,10 +115,6 @@ class Notes(commands.Cog, name='notes'):
 			head = ["Note name", "Added on", "Added by"]
 			msg = '```' + tabulate([note_infos], headers=head) + '```'
 			await ctx.send(msg, allowed_mentions=discord.AllowedMentions.none())
-
-	@commands.command()
-	async def notes(self, ctx):
-		await self.bot.get_command('note list').callback(self, ctx)
 
 def setup(bot):
 	bot.add_cog(Notes(bot))
