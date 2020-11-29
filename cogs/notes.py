@@ -114,7 +114,7 @@ class Notes(commands.Cog, name='notes'):
 			note_infos[2] = user.name + '#' + str(user.discriminator)
 			head = ["Note name", "Added on", "Added by"]
 			msg = '```' + tabulate([note_infos], headers=head) + '```'
-			await ctx.send(msg, allowed_mentions=discord.AllowedMentions.none())
+			await ctx.send(msg)
 
 def setup(bot):
 	bot.add_cog(Notes(bot))
