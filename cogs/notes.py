@@ -70,7 +70,7 @@ class Notes(commands.Cog, name='notes'):
 			sql = """INSERT INTO notes(guild_id, name, content, date_added, user_added)
 				 	 VALUES(?, ?, ?, datetime('now'), ?);"""
 			vals = (str(ctx.guild.id), name, content, str(ctx.author.id))
-			success = 'Added new'
+			success = 'added new'
 		else:
 			sql = """UPDATE notes
 					 SET content = ?,
@@ -79,7 +79,7 @@ class Notes(commands.Cog, name='notes'):
 					 WHERE name = ?
 					 AND guild_id = ? ;"""
 			vals = (content, str(ctx.author.id), name, str(ctx.guild.id))
-			success = 'Updated'
+			success = 'updated'
 		await db.write(sql, vals)
 		await ctx.send('**`{0} {1} note "{2}"`**'.format(ctx.author.name, success, name))
 
