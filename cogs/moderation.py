@@ -36,7 +36,7 @@ class Moderation(commands.Cog, name='moderation'):
 	@commands.has_guild_permissions(manage_guild=True)
 	@settings.command()
 	async def prefix(self, ctx, new_prefix: str):
-	"""Defines a new prefix for the bot"""
+		"""Defines a new prefix for the bot"""
 		if len(new_prefix) > 5:
 			ctx.send('Prefix cannot be longer than 5 characters')
 			return
