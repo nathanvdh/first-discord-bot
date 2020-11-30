@@ -3,6 +3,7 @@ from aiosqlite import Error
 import traceback
 
 DB_PATH = "database.db"
+BUILD_PATH = "build.sql"
 
 async def create_connection():
     """ Create a database connection to a SQLite database """
@@ -13,6 +14,11 @@ async def create_connection():
     except Error as e:
         print(e)
     return conn
+
+async def build():
+	conn = await create_connection()
+	with open(BUILD_PATH, "r", encoding="utf-8") as script:
+		await conn.executescript(script.read())
 
 async def write(sql, values=()):
 	conn = await create_connection()

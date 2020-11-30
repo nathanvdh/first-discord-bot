@@ -46,10 +46,6 @@ class BotConfig(commands.Cog, name='botconfig'):#, command_attrs=dict(hidden=Tru
 		await ctx.send('**`Successfully reloaded {}`**'.format(cog))
 
 	@commands.command()
-	async def shutdown(self, ctx):
-		await self.bot.logout()
-
-	@commands.command()
 	async def rename(self, ctx, *, name: str):
 		await self.bot.user.edit(username=name)
 		await ctx.send('**`Renamed bot to {}`**'.format(name))

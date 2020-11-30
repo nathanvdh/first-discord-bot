@@ -12,12 +12,6 @@ initial_extensions = [	'cogs.errorhandler',
 						'cogs.moderation'
 					 ]
 
-db_init = '''CREATE TABLE IF NOT EXISTS guild_prefs (
-	guild_id integer PRIMARY KEY,
-	prefix text DEFAULT "!",
-	bot_channels text DEFAULT ""
-)'''
-
 with open("owner.txt", "r") as owner_file:
 	owner = owner_file.read()
 
@@ -35,14 +29,14 @@ bot = commands.Bot(command_prefix=get_prefix, description='A bot by nacho', owne
 
 @bot.event
 async def on_ready():
-    print(f'\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
+	print(f'\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
 
 @bot.event
 async def on_guild_join(guild):
 	await db.write("INSERT INTO guild_prefs (guild_id) VALUES (?)", (guild.id,))
 	channel = guild.system_channel
 	if channel is not None:
-            await channel.send('Hide yo wife, hide yo kids. Diddly Kong is here!')
+			await channel.send('Hide yo wife, hide yo kids. Diddly Kong is here!')
 
 ##only default command is ping
 @bot.command(aliases=['latency'])
@@ -52,19 +46,11 @@ async def ping(ctx):
 bot.add_check(checks.bot_channel_only)
 
 if __name__ == '__main__':
-    for extension in initial_extensions:
-        bot.load_extension(extension)
+	for extension in initial_extensions:
+		bot.load_extension(extension)
 
 with open("token.txt", "r") as token_file:
 	token = token_file.read()
 
-async def run():
-	await db.write(db_init)
-	try:
-		await bot.start(token)
-	except KeyboardInterrupt:
-		await bot.logout()
-
-
-loop = asyncio.get_event_loop()
-loop.run_until_complete(run())
+bot.loop.create_task(db.build())
+bot.run(token)
