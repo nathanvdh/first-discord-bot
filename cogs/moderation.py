@@ -22,16 +22,13 @@ class Moderation(commands.Cog, name='moderation'):
 	async def add(self, ctx, channel: discord.TextChannel):
 		"""Allow a channel to use bot commands"""
 		new_channel = str(channel.id)
-		await db.write("UPDATE guild_prefs SET bot_channels = bot_channels || ? || ',' WHERE guild_id = ? ;", (new_channel, ctx.guild.id))
+		await db.write("INSERT INTO bot_channels (channel_id, guild_id) VALUES (?, ?) ;", (new_channel.id, ctx.guild.id))
 
 	@botchannel.command()
 	async def remove(self, ctx, channel: discord.TextChannel):
 		"""Disallow a channel to use bot commands"""
 		rm_channel = str(channel.id)
-		bot_channel_ids = await db.fetchone("SELECT bot_channels FROM guild_prefs WHERE guild_id = ? ;", (ctx.guild.id,))
-		bot_channel_ids_new = bot_channel_ids.replace(rm_channel+',', '')
-		print(bot_channel_ids_new)
-		await db.write("UPDATE guild_prefs SET bot_channels = ? WHERE guild_id = ? ;", (bot_channel_ids_new, ctx.guild.id))
+		bot_channel_ids = await db.write("DELETE FROM bot_channels WHERE guild_id = ? AND channel_id = ? ;", (ctx.guild.id, channel.id))
 
 	@commands.has_guild_permissions(manage_guild=True)
 	@settings.command()
@@ -40,7 +37,7 @@ class Moderation(commands.Cog, name='moderation'):
 		if len(new_prefix) > 5:
 			ctx.send('Prefix cannot be longer than 5 characters')
 			return
-		await db.write("UPDATE guild_prefs SET prefix = ? WHERE guild_id = ?", (new_prefix, ctx.guild.id))
+		await db.write("UPDATE prefixes SET prefix = ? WHERE guild_id = ?", (new_prefix, ctx.guild.id))
 
 def setup(bot):
     bot.add_cog(Moderation(bot))

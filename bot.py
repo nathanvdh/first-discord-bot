@@ -20,7 +20,7 @@ async def get_prefix(bot, message):
 	if message.guild is None:
 		pass
 	else:
-		_prefix = await db.fetchone("SELECT prefix FROM guild_prefs WHERE guild_id =?;", (message.guild.id,))
+		_prefix = await db.fetchone("SELECT prefix FROM prefixes WHERE guild_id =?;", (message.guild.id,))
 		if _prefix:
 			prefix = _prefix
 	return commands.when_mentioned_or(prefix)(bot, message)
@@ -33,7 +33,7 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild):
-	await db.write("INSERT INTO guild_prefs (guild_id) VALUES (?)", (guild.id,))
+	await db.write("INSERT INTO prefixes (guild_id) VALUES (?)", (guild.id,))
 	channel = guild.system_channel
 	if channel is not None:
 			await channel.send('Hide yo wife, hide yo kids. Diddly Kong is here!')
