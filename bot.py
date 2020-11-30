@@ -22,10 +22,13 @@ with open("owner.txt", "r") as owner_file:
 	owner = owner_file.read()
 
 async def get_prefix(bot, message):
+	prefix = '!'
 	if message.guild is None:
-		prefix = '!'
+		pass
 	else:
-		prefix = await db.fetchone("SELECT prefix FROM guild_prefs WHERE guild_id =?;", (message.guild.id,))
+		_prefix = await db.fetchone("SELECT prefix FROM guild_prefs WHERE guild_id =?;", (message.guild.id,))
+		if _prefix:
+			prefix = _prefix
 	return commands.when_mentioned_or(prefix)(bot, message)
 
 bot = commands.Bot(command_prefix=get_prefix, description='A bot by nacho', owner_id=int(owner))
