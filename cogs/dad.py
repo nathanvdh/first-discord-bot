@@ -9,7 +9,7 @@ class Dad(commands.Cog, name='dad'):
 	
 	@commands.Cog.listener()
 	async def on_message(self, message):
-		if message.author == bot.user:
+		if message.author == self.bot.user:
 			return
 		msg = message.content
 		for prefix in self.im:
