@@ -21,14 +21,12 @@ class Moderation(commands.Cog, name='moderation'):
 	@botchannel.command()
 	async def add(self, ctx, channel: discord.TextChannel):
 		"""Allow a channel to use bot commands"""
-		new_channel = str(channel.id)
-		await db.write("INSERT INTO bot_channels (channel_id, guild_id) VALUES (?, ?) ;", (new_channel.id, ctx.guild.id))
+		await db.write("INSERT INTO bot_channels (channel_id, guild_id) VALUES (?, ?) ;", (channel.id, ctx.guild.id))
 
 	@botchannel.command()
 	async def remove(self, ctx, channel: discord.TextChannel):
 		"""Disallow a channel to use bot commands"""
-		rm_channel = str(channel.id)
-		bot_channel_ids = await db.write("DELETE FROM bot_channels WHERE guild_id = ? AND channel_id = ? ;", (ctx.guild.id, channel.id))
+		bot_channel_ids = await db.write("DELETE FROM bot_channels WHERE channel_id = ? AND guild_id = ? ;", (ctx.guild.id, channel.id))
 
 	@commands.has_guild_permissions(manage_guild=True)
 	@settings.command()
