@@ -18,7 +18,10 @@ async def create_connection():
 async def build():
 	conn = await create_connection()
 	with open(BUILD_PATH, "r", encoding="utf-8") as script:
-		await conn.executescript(script.read())
+		try: 
+			await conn.executescript(script.read())
+		except Error as e:
+			print(e)
 
 async def write(sql, values=()):
 	conn = await create_connection()
@@ -29,7 +32,16 @@ async def write(sql, values=()):
 	await conn.commit()
 	await conn.close()
 
-async def fetchone(sql, values=()):
+async def writescript(sql):
+	conn = await create_connection()
+	try:
+		await conn.executescript(sql)
+	except Error as e:
+		print(e)
+	await conn.commit()
+	await conn.close()
+
+async def fetchfield(sql, values=()):
 	conn = await create_connection()
 	try:
 		cursor = await conn.execute(sql, values)
@@ -38,10 +50,30 @@ async def fetchone(sql, values=()):
 	result = await cursor.fetchone()
 	await cursor.close()
 	await conn.close()
-	if result:
-		return result[0]
-	else:
-		return None
+	return result[0]
+
+async def fetchrow(sql, values=()):
+	conn = await create_connection()
+	try:
+		cursor = await conn.execute(sql, values)
+	except Error as e:
+		print(e)
+	result = await cursor.fetchone()
+	await cursor.close()
+	await conn.close()
+	return result
+
+async def fetchcolumn(sql, values=()):
+	conn = await create_connection()
+	try:
+		cursor = await conn.execute(sql, values)
+	except Error as e:
+		print(e)
+	result = await cursor.fetchall()
+	await cursor.close()
+	await conn.close()
+	return [row[0] for row in result]
+
 
 async def fetchall(sql, values=()):
 	conn = await create_connection()

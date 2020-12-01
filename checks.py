@@ -8,11 +8,9 @@ async def bot_channel_only(ctx):
 	if ctx.guild is None:
 		if ctx.invoked_with == "help":
 			return True
-	bot_channel_ids = await db.fetchall("SELECT channel_id FROM bot_channels WHERE guild_id = ? ;",(ctx.guild.id,))
-	bot_channel_ids_list = [x[0] for x in bot_channel_ids]
-	print(bot_channel_ids_list)
-	if not bot_channel_ids_list:
+	bot_channel_ids = await db.fetchcolumn("SELECT channel_id FROM bot_channels WHERE guild_id = ? ;",(ctx.guild.id,))
+	if not bot_channel_ids:
 		return True
-	if ctx.channel.id in bot_channel_ids_list:
+	if ctx.channel.id in bot_channel_ids:
 		return True
 	raise NotInBotChannel()

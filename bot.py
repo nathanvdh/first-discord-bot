@@ -20,7 +20,7 @@ async def get_prefix(bot, message):
 	if message.guild is None:
 		pass
 	else:
-		_prefix = await db.fetchone("SELECT prefix FROM prefixes WHERE guild_id =?;", (message.guild.id,))
+		_prefix = await db.fetchfield("SELECT prefix FROM prefixes WHERE guild_id =?;", (message.guild.id,))
 		if _prefix:
 			prefix = _prefix
 	return commands.when_mentioned_or(prefix)(bot, message)
