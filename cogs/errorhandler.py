@@ -36,9 +36,8 @@ class ErrorHandler(commands.Cog, name='errorhandler'):
 		if isinstance(error, ignored):
 			return
 		
-		# if isinstance(error, commands.MissingRequiredArgument):
-		#     await.ctx()
-			
+		if isinstance(error, commands.MissingRequiredArgument):
+		     await ctx.send_help(ctx.command)	
 		
 		if isinstance(error, commands.DisabledCommand):
 			await ctx.send(f'{ctx.command} has been disabled.')
