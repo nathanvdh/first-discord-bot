@@ -22,6 +22,7 @@ class Moderation(commands.Cog, name='moderation'):
 	async def add(self, ctx, channel: discord.TextChannel):
 		"""Allow a channel to use bot commands"""
 		await db.write("INSERT INTO bot_channels (channel_id, guild_id) VALUES (?, ?) ;", (channel.id, ctx.guild.id))
+		await ctx.send("**`Added {} to the list of allowed bot channels`**".format(channel.mention))
 
 	@botchannel.command()
 	async def remove(self, ctx, channel: discord.TextChannel):
