@@ -65,7 +65,7 @@ class Decide(commands.Cog, name='decide'):
 
 	@commands.group(invoke_without_command=True)
 	async def decide(self, ctx, *, group_name: str=""):
-		"""Randomly chooses an item from a group"""
+		"""Chooses an item from a group"""
 		if not group_name:
 			await ctx.send_help(ctx.command)
 		else:
@@ -167,10 +167,9 @@ item_list is comma separated"""
 
 		await ctx.send(msg)
 
-
 	@decide.command()
 	async def info(self, ctx, *, group_name: str):
-		"""Shows information about a group"""
+		"""Shows information about a decision group"""
 		group_name=group_name.lower()
 		group_info = list(await self.retrieve_guild_group_info(ctx, group_name))
 		if not group_info:
@@ -181,6 +180,22 @@ item_list is comma separated"""
 			head = ["Decision group name", "Last modified", "Last modified by"]
 			msg = '```' + tabulate([group_info], headers=head) + '```'
 			await ctx.send(msg)
+	
+	@decide.command()
+	async def now(self, ctx, *, item_list: str):
+		"""Chooses an item from a list"""
+		item_list_list = item_list.strip(' ,').split(',')
+		item_list_list = [item.strip() for item in item_list_list]
+		if "" in item_list_list:
+			await ctx.send('Empty items are not allowed')
+			return
+		msg = '{}'.format(random.choice(item_list_list))
+		await ctx.send(msg)
+
+	@commands.command()
+	async def dice(self, ctx, sides: int):
+	"""Rolls a dice"""
+		await ctx.send(random.choice(range(1,sides)))
 
 def setup(bot):
 	bot.add_cog(Decide(bot))
