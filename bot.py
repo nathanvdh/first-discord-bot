@@ -9,7 +9,8 @@ initial_extensions = [	'cogs.errorhandler',
 						'cogs.botconfig',
 						'cogs.dad',
 						'cogs.notes',
-						'cogs.moderation'
+						'cogs.moderation',
+						'cogs.decide'
 					 ]
 
 with open("owner.txt", "r") as owner_file:

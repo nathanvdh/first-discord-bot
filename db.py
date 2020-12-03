@@ -10,6 +10,7 @@ async def create_connection():
     conn = None
     try:
         conn = await aiosqlite.connect(DB_PATH)
+        await conn.execute("PRAGMA foreign_keys = 1")
         return conn
     except Error as e:
         print(e)
@@ -26,16 +27,26 @@ async def build():
 async def write(sql, values=()):
 	conn = await create_connection()
 	try:
-		await conn.execute(sql, values)
+		result = await conn.execute(sql, values)
 	except Error as e:
 		print(e)
 	await conn.commit()
 	await conn.close()
+	return result
 
 async def writescript(sql):
 	conn = await create_connection()
 	try:
 		await conn.executescript(sql)
+	except Error as e:
+		print(e)
+	await conn.commit()
+	await conn.close()
+
+async def write_multi_row(sql, rows_list):
+	conn = await create_connection()
+	try:
+		await conn.executemany(sql, rows_list)
 	except Error as e:
 		print(e)
 	await conn.commit()
@@ -50,7 +61,9 @@ async def fetchfield(sql, values=()):
 	result = await cursor.fetchone()
 	await cursor.close()
 	await conn.close()
-	return result[0]
+	if result:
+		return result[0]
+	return result
 
 async def fetchrow(sql, values=()):
 	conn = await create_connection()
@@ -69,6 +82,7 @@ async def fetchcolumn(sql, values=()):
 		cursor = await conn.execute(sql, values)
 	except Error as e:
 		print(e)
+		return
 	result = await cursor.fetchall()
 	await cursor.close()
 	await conn.close()
