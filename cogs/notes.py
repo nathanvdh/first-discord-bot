@@ -45,7 +45,7 @@ class Notes(commands.Cog, name='notes'):
 		return note_info
 
 	@commands.group(invoke_without_command=True)
-	async def note(self, ctx, note_name: str=""):
+	async def note(self, ctx, *, note_name: str=""):
 		"""Retrieves a note"""
 		if not note_name:
 			await ctx.send_help(ctx.command)
@@ -68,13 +68,13 @@ class Notes(commands.Cog, name='notes'):
 
 		if await self.retrieve_note(ctx, note_name) is None:
 			sql = """INSERT INTO notes(guild_id, name, content, date_added, user_added)
-					 VALUES(?, ?, ?, datetime('now'), ?);"""
+					 VALUES(?, ?, ?, datetime('now', 'localtime'), ?);"""
 			vals = (ctx.guild.id, note_name, content, ctx.author.id)
 			success = 'added new'
 		else:
 			sql = """UPDATE notes
 					 SET content = ?,
-						 date_added = datetime('now'),
+						 date_added = datetime('now', 'localtime'),
 						 user_added = ?
 					 WHERE name = ?
 					 AND guild_id = ? ;"""
@@ -109,7 +109,7 @@ class Notes(commands.Cog, name='notes'):
 	async def info(self, ctx, note_name: str):
 		"""Shows information about a note"""
 		note_name=note_name.lower()
-		note_info = await list(self.retrieve_guild_note_infos(ctx, note_name))
+		note_info = list(await self.retrieve_guild_note_info(ctx, note_name))
 		if not note_info:
 			await ctx.send('That note does not exist!')
 		else:
