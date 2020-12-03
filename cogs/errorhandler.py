@@ -37,7 +37,15 @@ class ErrorHandler(commands.Cog, name='errorhandler'):
 			return
 		
 		if isinstance(error, commands.MissingRequiredArgument):
-		     await ctx.send_help(ctx.command)	
+		    await ctx.send_help(ctx.command)	
+
+		if isinstance(error, commands.NotOwner):
+			await ctx.send('Only the owner of the bot can use that.')
+
+		if isinstance(error, commands.MissingPermissions):
+			perms = '\n'.join(error.missing_perms)
+			msg = 'You do not have the following required permissions to do that:\n' + perms
+			await ctx.send(msg)
 		
 		if isinstance(error, commands.DisabledCommand):
 			await ctx.send(f'{ctx.command} has been disabled.')
