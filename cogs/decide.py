@@ -88,7 +88,7 @@ class Decide(commands.Cog, name='decide'):
 		"""Adds a decision group to this server or items to an existing group
 item_list is comma separated"""
 		group_name = group_name.lower()
-		item_list_list = item_list.split(',')
+		item_list_list = item_list.strip(' ,').split(',')
 		item_list_list = [item.strip() for item in item_list_list]
 		if "" in item_list_list:
 			await ctx.send('Empty items are not allowed')
@@ -126,12 +126,7 @@ item_list is comma separated"""
 	async def remove(self, ctx, group_name: str, *, item_list: str=""):
 		"""Removes a decision group from this server or items from an existing group
 item_list is comma separated"""
-		group_name = group_name.lower()
-		item_list_list = item_list.split(',')
-		item_list_list = [item.strip() for item in item_list_list]
-		if "" in item_list_list:
-			await ctx.send('Empty items are not allowed')
-			return
+		group_name = group_name.lower()		
 		group_id = await self.retrieve_group(ctx, group_name)
 
 		if not group_id:
@@ -145,6 +140,11 @@ item_list is comma separated"""
 			await db.write(sql, vals)
 			success = 'removed'
 		else:
+			item_list_list = item_list.split(',')
+			item_list_list = [item.strip() for item in item_list_list]
+			if "" in item_list_list:
+				await ctx.send('Empty items are not allowed')
+				return
 			item_list_with_id = [(item, group_id) for item in item_list_list]
 			sql = """DELETE FROM decision_items
 				 	 WHERE item = ?
