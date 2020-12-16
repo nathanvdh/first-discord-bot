@@ -1,5 +1,5 @@
 
 *.pyc
-token.txt
 *.db
-owner.txt
+*.txt
+data/
