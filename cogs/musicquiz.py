@@ -20,7 +20,9 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 		self.track_name = track_data['name']
 		self.artist_names = [artist['name'] for artist in track_data['artists']]
 		self.spotify_link = track_data['external_urls']['spotify']
-		self.album_art = track_data['album']['images'][0]['url']
+		images = track_data['album']['images']
+		if images:
+			self.album_art = images[0]['url']
 
 class QuizGame:
 	"""An instance of a single running music trivia quiz game"""
@@ -45,7 +47,8 @@ class QuizGame:
 	async def player_loop(self):
 		"""Our main player loop."""
 		await self.bot.wait_until_ready()
-
+		track_guild_msg = None
+		track_dm_msgs = []
 		while not self.bot.is_closed() and self._tracks_played != self._no_tracks:
 			self.next.clear()
 
@@ -64,7 +67,16 @@ class QuizGame:
 			# Make sure the FFmpeg process is cleaned up.
 			source.cleanup()
 			self._tracks_played += 1
-			await asyncio.sleep(5)
+			prev_track_str = f"The previous song was:\n{source.spotify_link}"
+			if self._tracks_played == 1:
+				track_guild_msg = await self._channel.send(prev_track_str)
+				for participant in self._participants:
+					track_dm_msgs.append(await participant.send(prev_track_str))
+			else:
+				await track_guild_msg.edit(content=prev_track_str)
+				for track_dm_msg in track_dm_msgs:
+					await track_dm_msg.edit(content=prev_track_str)
+			await asyncio.sleep(10)
 
 		return self.destroy(self._guild)
 
@@ -82,11 +94,11 @@ class QuizGame:
 
 			track = artist_tracks[artist].pop()
 			while not track['preview_url'] and artist_tracks.get(artist):
-				print(f'Track {track["name"]} from artist {artist} does not have a 30s clip.')
+				print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
 				track = artist_tracks[artist].pop()
 			
 			if not artist_tracks.get(artist):
-				await self._channel.send(f'None of the top tracks from {artist} have 30s clips :frowning:, consider removing them from rotation.')
+				await self._channel.send(f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
 				self._artists.remove(artist)
 				continue
 
@@ -213,9 +225,14 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 		for artist_name in artist_names:
 			artist = await self.search_artist(artist_name)
-			artist_data.append((artist['id'], artist['name'], artist['external_urls']['spotify'], artist['images'][0]['url']))
+			images = artist['images']
+			if images:
+				image = images[0]['url']
+			else:
+				image = None
+			artist_data.append((artist['id'], artist['name'], artist['external_urls']['spotify'], image))
 		
-		sql = """INSERT INTO artists (artist_id, name, spotify_link, image_link)
+		sql = """INSERT OR IGNORE INTO artists (artist_id, name, spotify_link, image_link)
 				 VALUES (?, ?, ?, ?)
 			  """
 		await db.write_multi_row(sql, artist_data)
@@ -240,8 +257,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		for artist_id in artist_id_list:
 			if artist_id:
 				artist_cats_data.append((artist_id, category_name, guild_id))
-
-		sql = """INSERT INTO artist_cats (artist_id, category, guild_id)
+		sql = """INSERT OR IGNORE INTO artist_cats (artist_id, category, guild_id)
 				 VALUES (?, ?, ?)
 			  """
 		await db.write_multi_row(sql, artist_cats_data)
@@ -272,22 +288,22 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		else:
 			return True
 
-	@commands.command()
-	async def artist(self, ctx, *, artist_name: str):
-		"""Gets artist info via spotify api"""
+	# @commands.command()
+	# async def artist(self, ctx, *, artist_name: str):
+	# 	"""Gets artist info via spotify api"""
 
-		artist = await self.search_artist(artist_name)
-		top_tracks = await self.spy_client.artists.get_top_tracks(artist_id=artist['id'], country='AU', limit=7)
-		songs = ''
-		for track in top_tracks['tracks']:
-			songs += f'[{track["name"]}]({track["external_urls"]["spotify"]})\n'
-		embed = discord.Embed (
-			title = artist['name'],
-			url = artist['external_urls']['spotify'],
-		)
-		embed.set_thumbnail(url=f'{artist["images"][0]["url"]}')
-		embed.add_field(name='Top Songs', value=songs)
-		await ctx.send(embed=embed)
+	# 	artist = await self.search_artist(artist_name)
+	# 	top_tracks = await self.spy_client.artists.get_top_tracks(artist_id=artist['id'], country='AU', limit=7)
+	# 	songs = ''
+	# 	for track in top_tracks['tracks']:
+	# 		songs += f'[{track["name"]}]({track["external_urls"]["spotify"]})\n'
+	# 	embed = discord.Embed (
+	# 		title = artist['name'],
+	# 		url = artist['external_urls']['spotify'],
+	# 	)
+	# 	embed.set_thumbnail(url=f'{artist["images"][0]["url"]}')
+	# 	embed.add_field(name='Top Songs', value=songs)
+	# 	await ctx.send(embed=embed)
 
 	# @commands.group(invoke_without_command=True)
 	# async def play(self, ctx):
@@ -303,12 +319,13 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 	@commands.group(invoke_without_command=True, aliases=['mq'])
 	async def musicquiz(self, ctx):
+		"""Control the music guessing game"""
 		await ctx.send_help(ctx.command)
 
 	@commands.has_guild_permissions(manage_messages=True)	
 	@musicquiz.command()
 	async def add(self, ctx, category_name: str, *, artist_list:str):
-		"""Add artist(s) to a music quiz category"""
+		"""Add artists to a music category"""
 		category_name = category_name.lower()
 		artist_list_list = self.parse_csl(artist_list)
 		if not self.valid_category(category_name):
@@ -320,25 +337,24 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		##Do this with some sqlite query that will return a list of artist names that don't match any in the db
 		##artist_list_list = await self.remove_existing_artists(artist_list_list)
 		artist_data = await self.add_new_artists(category_name, artist_list_list)
-		
 		await self.add_to_category(category_name, [artist[0] for artist in artist_data], ctx.guild.id)
 		
-		artists_str=''
+		artists_str='Artists added:\n'
 		for artist in artist_data:
-			artists_str += f'[{artist[1]}]({artist[2]})\n'
+			artists_str += f'{artist[1]}    '
 		if not artists_str:
-			artists = 'None'
-		embed = discord.Embed (
-			title = f'{ctx.author.name} added the following artists to the "{category_name}" category:',
-		)
-		embed.add_field(name='Added artists:', value=artists_str)
+			artists += 'None'
+		# embed = discord.Embed (
+		# 	title = f'{ctx.author.name} added the following artists to the "{category_name}" category:',
+		# )
+		# embed.add_field(name='Added artists:', value=artists_str)
 
-		await ctx.send(embed=embed)
+		await ctx.send(artists_str)
 	
 	@commands.has_guild_permissions(manage_guild=True)
 	@musicquiz.group(invoke_without_command=True)
 	async def remove(self, ctx, category_name: str, *, artist_list: str=""):
-		##!mq remove category_name [artist_list]
+		"""Remove artists from a music category"""
 		category_name = category_name.lower()		
 		sql = """SELECT EXISTS(SELECT 1 FROM artist_cats WHERE category = ? AND guild_id = ?) ;
 			  """
@@ -353,7 +369,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 					 WHERE category = ?
 					 AND guild_id = ? ;
 				  """
-			print((category_name, ctx.guild.id))
 			await db.write(sql, (category_name, ctx.guild.id))
 			success = 'removed'
 		else:
@@ -390,12 +405,14 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 	@musicquiz.command()
 	async def list(self, ctx, category_name: str=""):
+		"""List the artists in a music category"""
 		category_name = category_name.lower()
 
 		if not category_name:
 			sql = """SELECT DISTINCT category
 					 FROM artist_cats
-					 WHERE guild_id = ? ;
+					 WHERE guild_id = ?
+					 ORDER BY category ASC;
 				  """
 			guild_categories = await db.fetchcolumn(sql, (ctx.guild.id,))
 			await ctx.send('MusicQuiz categories:\n' + '\n'.join(guild_categories))
@@ -403,7 +420,8 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			sql = """SELECT a.* 
 					 FROM artists a
 					 INNER JOIN artist_cats c ON a.artist_id = c.artist_id
-					 WHERE category = ? AND guild_id = ? ;
+					 WHERE category = ? AND guild_id = ?
+					 ORDER BY a.name;
 				  """
 			vals = (category_name, ctx.guild.id)
 			artist_list = await db.fetchall(sql, vals)
@@ -412,13 +430,13 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 				return
 			artists_str=''
 			for artist in artist_list:
-				artists_str += f'[{artist[1]}]({artist[2]})\n'
+				artists_str += f'{artist[1]}    '
 
-			embed = discord.Embed (
-				title = f'The following artists are in the "{category_name}" category:',
-			)
-			embed.add_field(name=f'"{category_name}" artists:', value=artists_str)
-			await ctx.send(embed=embed)
+			# embed = discord.Embed (
+			# 	title = f'The following artists are in the "{category_name}" category:',
+			# )
+			# embed.add_field(name=f'"{category_name}" artists:', value=artists_str)
+			await ctx.send(artists_str)
 
 	@musicquiz.command()
 	async def start(self, ctx, category_name: str, no_songs: int):
@@ -440,13 +458,16 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		if not artists:
 			raise commands.ArgumentParsingError("The provided category does not exist")
 		
-		game = QuizGame(ctx, no_songs, artists)
+		participants = ctx.voice_client.channel.members
+		participants.remove(ctx.me)
+		game = QuizGame(ctx, no_songs, artists, participants)
 		self.games[ctx.guild.id] = game
 
 		await game.begin()
 
 	@commands.command()
 	async def stop(self, ctx):
+		"""Stop the an in-progress music quiz"""
 		vc = ctx.voice_client
 
 		if not vc or not vc.is_connected():
@@ -454,7 +475,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 		await self.cleanup(ctx.guild)
 
-	@play.before_invoke
 	@start.before_invoke
 	async def ensure_voice(self, ctx):
 		if ctx.voice_client is None:
