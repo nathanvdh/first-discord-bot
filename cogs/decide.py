@@ -8,11 +8,10 @@ class Decide(commands.Cog, name='decide'):
 	"""A cog to make decisions for you"""
 	def __init__(self, bot):
 		self.bot = bot
-		bot.loop.create_task(self.create_table())
+		bot.loop.create_task(self.create_tables())
 	
-	async def create_table(self):
-		sql = """PRAGMA foreign_keys = ON;
-			CREATE TABLE IF NOT EXISTS decision_groups (
+	async def create_tables(self):
+		sql = """CREATE TABLE IF NOT EXISTS decision_groups (
 			group_id integer PRIMARY KEY,
 			guild_id integer,
 			name text,
@@ -124,8 +123,10 @@ item_list is comma separated"""
 	@commands.has_guild_permissions(manage_messages=True)
 	@decide.command(aliases=['delete'])
 	async def remove(self, ctx, group_name: str, *, item_list: str=""):
-		"""Removes a decision group from this server or items from an existing group
-item_list is comma separated"""
+		"""
+		Removes a decision group from this server or items from an existing group
+		item_list is comma separated
+		"""
 		group_name = group_name.lower()		
 		group_id = await self.retrieve_group(ctx, group_name)
 
@@ -140,7 +141,7 @@ item_list is comma separated"""
 			await db.write(sql, vals)
 			success = 'removed'
 		else:
-			item_list_list = item_list.split(',')
+			item_list_list = item_list.strip(' ,').split(',')
 			item_list_list = [item.strip() for item in item_list_list]
 			if "" in item_list_list:
 				await ctx.send('Empty items are not allowed')
@@ -193,9 +194,9 @@ item_list is comma separated"""
 		await ctx.send(msg)
 
 	@commands.command()
-	async def dice(self, ctx, sides: int):
-	"""Rolls a dice"""
-		await ctx.send(random.choice(range(1,sides)))
+	async def die(self, ctx, sides: int):
+		"""Rolls a die"""
+		await ctx.send(random.randint(1, sides))
 
 def setup(bot):
 	bot.add_cog(Decide(bot))
