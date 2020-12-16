@@ -33,7 +33,7 @@ class Moderation(commands.Cog, name='moderation'):
 	@settings.command()
 	async def prefix(self, ctx, new_prefix: str):
 		"""Defines a new prefix for the bot"""
-		if len(new_prefix) > 5:
+		if len(new_prefix) > 6:
 			ctx.send('Prefix cannot be longer than 5 characters')
 			return
 		await db.write("UPDATE prefixes SET prefix = ? WHERE guild_id = ?", (new_prefix, ctx.guild.id))
