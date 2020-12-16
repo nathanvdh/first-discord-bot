@@ -1,20 +1,17 @@
-import asyncio
 import discord
 from discord.ext import commands
-import db
-import random
-import aiofiles
-from aioconsole import ainput
-from functools import partial
-from async_timeout import timeout
 
+import asyncio
+from async_timeout import timeout
+from aioconsole import ainput
+import aiofiles
+
+import db
+
+import random
 
 from async_spotify import SpotifyApiClient, TokenRenewClass
 from async_spotify.authentification.authorization_flows import AuthorizationCodeFlow
-#import aiohttp
-
-
-
 
 class SpotifyTrackSource(discord.PCMVolumeTransformer):
 
@@ -24,7 +21,6 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 		self.artist_names = [artist['name'] for artist in track_data['artists']]
 		self.spotify_link = track_data['external_urls']['spotify']
 		self.album_art = track_data['album']['images'][0]['url']
-
 
 class QuizGame:
 	"""An instance of a single running music trivia quiz game"""
@@ -132,9 +128,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 	def cog_unload(self):
 		self.bot.loop.create_task(self.spy_client.close_client())
-
-	# async def cog_check(self, ctx):
-	# 	return await self.bot.is_owner(ctx.author)
 
 	async def on_command_error(self, ctx, error):
 		
@@ -296,17 +289,17 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		embed.add_field(name='Top Songs', value=songs)
 		await ctx.send(embed=embed)
 
-	@commands.group(invoke_without_command=True)
-	async def play(self, ctx):
-		await ctx.send_help(ctx.command)
+	# @commands.group(invoke_without_command=True)
+	# async def play(self, ctx):
+	# 	await ctx.send_help(ctx.command)
 
-	@play.command()
-	async def top(self, ctx, artist_name: str):
-		artist = await self.search_artist(artist_name)
-		top_tracks = await artist.get_top(limit=8)
-		preview = top_tracks[0].preview
-		source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(f'{preview}'))
-		ctx.voice_client.play(source, after=partial(self.leave_after,ctx=ctx))
+	# @play.command()
+	# async def top(self, ctx, artist_name: str):
+	# 	artist = await self.search_artist(artist_name)
+	# 	top_tracks = await artist.get_top(limit=8)
+	# 	preview = top_tracks[0].preview
+	# 	source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(f'{preview}'))
+	# 	ctx.voice_client.play(source, after=partial(self.leave_after,ctx=ctx))
 
 	@commands.group(invoke_without_command=True, aliases=['mq'])
 	async def musicquiz(self, ctx):
@@ -325,7 +318,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		##TODO: Skip artists that are already in the database
 		##Currently spotify will be queried for every add command, even if artist already exists in db
 		##Do this with some sqlite query that will return a list of artist names that don't match any in the db
-		###artist_list_list = await self.remove_existing_artists(artist_list_list)
+		##artist_list_list = await self.remove_existing_artists(artist_list_list)
 		artist_data = await self.add_new_artists(category_name, artist_list_list)
 		
 		await self.add_to_category(category_name, [artist[0] for artist in artist_data], ctx.guild.id)
@@ -427,7 +420,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			embed.add_field(name=f'"{category_name}" artists:', value=artists_str)
 			await ctx.send(embed=embed)
 
-
 	@musicquiz.command()
 	async def start(self, ctx, category_name: str, no_songs: int):
 		"""Starts a music trivia game
@@ -453,7 +445,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 		await game.begin()
 
-
 	@commands.command()
 	async def stop(self, ctx):
 		vc = ctx.voice_client
@@ -462,7 +453,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			return await ctx.send('I am not currently playing anything!', delete_after=20)
 
 		await self.cleanup(ctx.guild)
-		#await ctx.voice_client.disconnect()
 
 	@play.before_invoke
 	@start.before_invoke
@@ -476,13 +466,13 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		elif ctx.voice_client.is_playing():
 			ctx.voice_client.stop()
 
-	def leave_after(self, error, ctx):
-		coro = ctx.voice_client.disconnect()
-		fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
-		try:
-			fut.result()
-		except:
-			pass
+	# def leave_after(self, error, ctx):
+	# 	coro = ctx.voice_client.disconnect()
+	# 	fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
+	# 	try:
+	# 		fut.result()
+	# 	except:
+	# 		pass
 
 def setup(bot):
 	bot.add_cog(MusicQuiz(bot))
