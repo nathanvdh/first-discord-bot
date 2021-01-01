@@ -1,3 +1,7 @@
 discord.py[voice]
 aiosqlite
 tabulate
+aioconsole
+fuzzywuzzy
+unidecode
+async-spotify
