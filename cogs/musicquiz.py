@@ -89,12 +89,13 @@ class QuizGame:
 	async def player_loop(self):
 		"""Our main player loop."""
 		await self.bot.wait_until_ready()
-		for participant in self._participants:
+		participants = self._participants
+		for participant in participants:
 				await participant.send('Welcome to Diddly Binb!\nThe game will begin in 10s...')
-		
+		self.next.clear()
+		self._track_ready.clear()
+
 		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
-			self.next.clear()
-			self._track_ready.clear()
 			await asyncio.sleep(10)
 			try:
 				# Wait for the next song. If we timeout cancel the player and disconnect...
@@ -105,22 +106,24 @@ class QuizGame:
 
 			self.current_track = source
 			self._track_ready.set()
-			answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names}'
+			answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names.keys()}'
 			print(answer)
 			source.volume = self.volume
 			self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
 			await self.next.wait()
-
+			#print("Song finished playing...")
 			# Make sure the FFmpeg process is cleaned up.
 			source.cleanup()
 			self._tracks_played += 1
 			
-			participants = self._participants
+			self.next.clear()
+			self._track_ready.clear()
+
 			participant_score_list = sorted(participants.items(), key=lambda item: item[1])
 			after_track_str = 'Leaderboard:\n'
 			for participant, score in participant_score_list:
 				after_track_str += f'{participant.name}:\t\t {score}\n'
-			after_track_str += f'The previous song was:\n{source.spotify_link}'
+			after_track_str += f'\nThe previous song was:\n{source.spotify_link}'
 			
 			for participant in participants:
 				await participant.send(after_track_str)
@@ -132,19 +135,21 @@ class QuizGame:
 		def participant(msg):
 			#print(msg.guild)
 			return msg.author in self._participants and not msg.guild
-		
-		await self._track_ready.wait()
-		
-		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
 
-			await self._guess_queue.put(await self.bot.wait_for('message', check=participant))
-			print("Received and queued message\n")
+		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+			await self._track_ready.wait()
+			msg = await self.bot.wait_for('message', check=participant)
+			#print("Received message\n")
+			if self._track_ready.is_set():	
+					#print("Try to queue message\n")
+					await self._guess_queue.put(msg)
+					#print("Queued message\n")
 	
 	async def process_guesses(self):
 		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
-			print("Waiting for new guess to be queued")
+			#print("Waiting for new guess to be queued")
 			msg = await self._guess_queue.get()
-			print("Processing guess")
+			#print("Processing guess")
 			msg_content = msg.content.casefold()
 			author = msg.author
 			score = 0
@@ -257,7 +262,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			del self.games[guild.id]
 		except KeyError:
 			pass
-		print("Cog cleanup done.")
+		#print("Cog cleanup done.")
 
 	async def connect_to_spotify(self):
 		authorization_url: str =  self.spy_client.build_authorization_url(show_dialog = False)
