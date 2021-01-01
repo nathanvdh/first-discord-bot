@@ -157,8 +157,8 @@ class QuizGame:
 			# Try to match track name
 			string_match = partial(fuzz.ratio, msg_content, self.current_track.track_name)
 			track_score = await self.bot.loop.run_in_executor(None, string_match)
+			print(f'"{msg_content}" track score: {track_score}\n')
 			if track_score > 90 and author not in self.current_track.guessed_track:
-				print(f'Track score: {track_score}\n')
 				await msg.author.send('You guessed the song name!')
 				self.current_track.guessed_track.append(author)
 				score += 1
@@ -174,9 +174,8 @@ class QuizGame:
 			# Try to match artist
 			string_match = partial(process.extractOne, msg_content, self.current_track.artist_names.keys(), scorer=fuzz.ratio)
 			artist, artist_score = await self.bot.loop.run_in_executor(None, string_match)
-			# If the author hasn't guessed it already
+			print(f'"{msg_content}" artist score: {artist_score}\n')
 			if artist_score > 90 and author not in self.current_track.artist_names[artist]:
-				print(f'Artist score: {artist_score}\n')
 				await msg.author.send('You guessed an artist!')
 				# Add the author to the list of participants who have guessed the track
 				self.current_track.artist_names[artist].append(author)
@@ -579,7 +578,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 				await ctx.author.voice.channel.connect()
 			else:
 				await ctx.send('Join a voice channel first.')
-				raise commands.CommandError('Author not connected to a voice channel.')
+				#raise commands.CommandError('Author not connected to a voice channel.')
 		elif ctx.voice_client.is_playing():
 			ctx.voice_client.stop()
 
