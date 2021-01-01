@@ -4,84 +4,65 @@ from discord.ext import commands
 import asyncio
 from async_timeout import timeout
 from aioconsole import ainput
-import aiofiles
+
+from functools import partial
+
+from contextlib import suppress
 
 import db
 
 import random
 
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
+
+from unidecode import unidecode
+
 from async_spotify import SpotifyApiClient, TokenRenewClass
 from async_spotify.authentification.authorization_flows import AuthorizationCodeFlow
 
 class SpotifyTrackSource(discord.PCMVolumeTransformer):
-
 	def __init__(self, track_data):
 		super().__init__(discord.FFmpegPCMAudio(track_data['preview_url'], before_options='-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5'))
-		self.track_name = track_data['name']
-		self.artist_names = [artist['name'] for artist in track_data['artists']]
+		# Dict holding track_name: list of users who have guessed it
+		self.track_name = unidecode(track_data['name'].casefold()).replace('(',' - ').split(" - ",1)[0]
+		self.guessed_track = []
+		# Dict holding artist_name: list of users who have guessed it
+		self.artist_names = {artist_name: [] for artist_name in [unidecode(artist['name'].casefold()) for artist in track_data['artists']]}
+		self.primary_artist = next(iter(self.artist_names.keys()))
 		self.spotify_link = track_data['external_urls']['spotify']
-		images = track_data['album']['images']
-		if images:
-			self.album_art = images[0]['url']
+		self.bonuses_given = 0
+		# images = track_data['album']['images']
+		# if images:
+		# 	self.album_art = images[0]['url']
 
 class QuizGame:
 	"""An instance of a single running music trivia quiz game"""
-	__slots__ = ('bot', '_no_tracks', '_artists', '_participants', '_guild', '_channel', '_cog', 'queue', 'next', '_tracks_played', 'volume', 'current_track')
+	__slots__ = ('bot', '_no_tracks', '_artists', '_participants', '_guild', '_channel', '_cog', 'queue', '_guess_queue', 'next', '_track_ready', '_tracks_played', 'volume', 'current_track', '_tasks')
 	
 	def __init__(self, ctx, no_tracks: int, artists, participants=[]):
 		self.bot = ctx.bot
-		self._no_tracks = no_tracks
-		self._artists = artists
-		self._participants = participants
 		self._guild = ctx.guild
 		self._channel = ctx.channel
 		self._cog = ctx.cog
+		
+		self._no_tracks = no_tracks
+		self._artists = artists
+		self._participants = {participant: 0 for participant in participants}
 
 		self.queue = asyncio.Queue()
+		self._guess_queue = asyncio.Queue()
 		self.next = asyncio.Event()
+		self._track_ready = asyncio.Event()
 		self._tracks_played = 0 ;
+		self.current_track = None
 
 		self.volume = .5
-		self.current_track = None
-		
-	async def player_loop(self):
-		"""Our main player loop."""
-		await self.bot.wait_until_ready()
-		track_guild_msg = None
-		track_dm_msgs = []
-		while not self.bot.is_closed() and self._tracks_played != self._no_tracks:
-			self.next.clear()
-
-			try:
-				# Wait for the next song. If we timeout cancel the player and disconnect...
-				async with timeout(30):  # 30 seconds...
-					source = await self.queue.get()
-			except asyncio.TimeoutError:
-				return self.destroy(self._guild)
-
-			self.current_track = source
-			source.volume = self.volume
-			self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
-			await self.next.wait()
-
-			# Make sure the FFmpeg process is cleaned up.
-			source.cleanup()
-			self._tracks_played += 1
-			prev_track_str = f"The previous song was:\n{source.spotify_link}"
-			if self._tracks_played == 1:
-				track_guild_msg = await self._channel.send(prev_track_str)
-				for participant in self._participants:
-					track_dm_msgs.append(await participant.send(prev_track_str))
-			else:
-				await track_guild_msg.edit(content=prev_track_str)
-				for track_dm_msg in track_dm_msgs:
-					await track_dm_msg.edit(content=prev_track_str)
-			await asyncio.sleep(10)
-
-		return self.destroy(self._guild)
+	
+		self._tasks = []
 
 	async def queue_tracks(self):
-		"""Picks and downloads tracks from spotify and queues them"""
+		"""Picks tracks from spotify and queues them"""
 		artist_tracks = {}
 		for i in range(0, self._no_tracks):
 			artist = random.choice(self._artists)
@@ -104,26 +85,135 @@ class QuizGame:
 
 			source = SpotifyTrackSource(track)
 			await self.queue.put(source)
+	
+	async def player_loop(self):
+		"""Our main player loop."""
+		await self.bot.wait_until_ready()
+		for participant in self._participants:
+				await participant.send('Welcome to Diddly Binb!\nThe game will begin in 10s...')
+		
+		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+			self.next.clear()
+			self._track_ready.clear()
+			await asyncio.sleep(10)
+			try:
+				# Wait for the next song. If we timeout cancel the player and disconnect...
+				async with timeout(30):  # 30 seconds...
+					source = await self.queue.get()
+			except asyncio.TimeoutError:
+				return self.end_queue_complete(self._guild)
+
+			self.current_track = source
+			self._track_ready.set()
+			answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names}'
+			print(answer)
+			source.volume = self.volume
+			self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
+			await self.next.wait()
+
+			# Make sure the FFmpeg process is cleaned up.
+			source.cleanup()
+			self._tracks_played += 1
+			
+			participants = self._participants
+			participant_score_list = sorted(participants.items(), key=lambda item: item[1])
+			after_track_str = 'Leaderboard:\n'
+			for participant, score in participant_score_list:
+				after_track_str += f'{participant.name}:\t\t {score}\n'
+			after_track_str += f'The previous song was:\n{source.spotify_link}'
+			
+			for participant in participants:
+				await participant.send(after_track_str)
+
+		return self.end_queue_complete(self._guild)
 
 	async def listen_to_participants(self):
 		"""Handles messages sent in DMs, scoring and going to next song (maybe)"""
-		pass
+		def participant(msg):
+			#print(msg.guild)
+			return msg.author in self._participants and not msg.guild
+		
+		await self._track_ready.wait()
+		
+		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+
+			await self._guess_queue.put(await self.bot.wait_for('message', check=participant))
+			print("Received and queued message\n")
+	
+	async def process_guesses(self):
+		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+			print("Waiting for new guess to be queued")
+			msg = await self._guess_queue.get()
+			print("Processing guess")
+			msg_content = msg.content.casefold()
+			author = msg.author
+			score = 0
+			
+			# Try to match track name
+			string_match = partial(fuzz.ratio, msg_content, self.current_track.track_name)
+			track_score = await self.bot.loop.run_in_executor(None, string_match)
+			if track_score > 90 and author not in self.current_track.guessed_track:
+				print(f'Track score: {track_score}\n')
+				await msg.author.send('You guessed the song name!')
+				self.current_track.guessed_track.append(author)
+				score += 1
+				
+				bonuses_given = self.current_track.bonuses_given
+				if bonuses_given < 3:
+					if author in next(iter(self.current_track.artist_names.values())):
+						score += 3 - bonuses_given
+						self.current_track.bonuses_given += 1
+				self._participants[author] += score
+				continue
+
+			# Try to match artist
+			string_match = partial(process.extractOne, msg_content, self.current_track.artist_names.keys(), scorer=fuzz.ratio)
+			artist, artist_score = await self.bot.loop.run_in_executor(None, string_match)
+			# If the author hasn't guessed it already
+			if artist_score > 90 and author not in self.current_track.artist_names[artist]:
+				print(f'Artist score: {artist_score}\n')
+				await msg.author.send('You guessed an artist!')
+				# Add the author to the list of participants who have guessed the track
+				self.current_track.artist_names[artist].append(author)
+				
+				score += 1
+				if artist == self.current_track.primary_artist:
+					bonuses_given = self.current_track.bonuses_given
+					if bonuses_given < 3:
+						if author in self.current_track.guessed_track:
+							score += 3 - bonuses_given
+							self.current_track.bonuses_given += 1
+				self._participants[author] += score
 
 	async def begin(self):
 		"""Runs the other 3 loops?"""
+
+		##queue_tracks() is a one-shot
 		self.bot.loop.create_task(self.queue_tracks())
-		self.bot.loop.create_task(self.player_loop())
-		#ctx.bot.loop.create_task(self.listen_to_participants())
+		
+		loops = [self.player_loop(), self.listen_to_participants(), self.process_guesses()]
+		for loop in loops:
+			self._tasks.append(self.bot.loop.create_task(loop))
 
+	def end_queue_complete(self, guild):
+		"""Disconnect and cleanup the player internal"""
+		## Only cancels the listen_to_participant loop as the player_loop returns (is done) after this function returns
+		self._tasks[1].cancel()
+		# Maybe don't cancel this to let the queue finish
+		#self._tasks[2].cancel()
+		return self.bot.loop.create_task(self._cog.cleanup(guild))
 
-	def destroy(self, guild):
-		"""Disconnect and cleanup the player."""
+	def end_stopped(self, guild):
+		"""Disconnect and cleanup the player external"""
+		## Cancel both loops
+		for task in self._tasks:
+			task.cancel()
 		return self.bot.loop.create_task(self._cog.cleanup(guild))
 
 class MusicQuiz(commands.Cog, name='musicquiz'):
 	"""A binb clone in a discord bot!"""
 	
-	__slots__ = ('bot', 'players')
+	#__slots__ = ('bot', 'games')
 
 	def __init__(self, bot):
 		self.bot = bot
@@ -140,6 +230,8 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 	def cog_unload(self):
 		self.bot.loop.create_task(self.spy_client.close_client())
+		for game in self.games.keys():
+			del game
 
 	async def on_command_error(self, ctx, error):
 		
@@ -149,7 +241,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		error = getattr(error, 'original', error)
 		
 		if hassattr(error, 'message'):
-			ctx.send(f'{error.message}')
+			await ctx.send(f'{error.message}')
 
 		else:
 			print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
@@ -165,21 +257,13 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			del self.games[guild.id]
 		except KeyError:
 			pass
+		print("Cog cleanup done.")
 
 	async def connect_to_spotify(self):
-		#auth_token: SpotifyAuthorisationToken = await api.get_auth_token_with_code(code)
-		try:
-			async with aiofiles.open('spotify_code.txt', 'r') as code_file:
-				code = await code_file.read()
-			await self.spy_client.get_auth_token_with_code(code)
-		except:
-			authorization_url: str =  self.spy_client.build_authorization_url(show_dialog = False)
-			print(f'Get auth code from here: {authorization_url}')
-			code = await ainput('Paste the code here: ')
-			async with aiofiles.open("spotify_code.txt", "w") as code_file:
-				await code_file.write(code)
-			await self.spy_client.get_auth_token_with_code(code)
-
+		authorization_url: str =  self.spy_client.build_authorization_url(show_dialog = False)
+		print(f'Get auth code from here: {authorization_url}')
+		code = await ainput('Paste the code here: ')
+		await self.spy_client.get_auth_token_with_code(code)
 		await self.spy_client.create_new_client()
 
 	async def create_tables(self):
@@ -447,19 +531,22 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		no_songs : the number of songs you want the game to last
 		"""
 		if self.games.get(ctx.guild.id):
-			raise commands.CommandError("A game is already in progress!")
+			return ctx.send("A game is already in progress!")
 
-		if not 1 <= no_songs <= 10:
-			raise commands.ArgumentParsingError("Must provide a number of songs from 1 to 10") 
+		if not 1 <= no_songs <= 15:
+			self.cleanup(ctx.guild)
+			return ctx.send("Must provide a number of songs from 1 to 15") 
 
 		category_name = category_name.lower()
 		artists = await self.get_artists_in_category(category_name, ctx.guild.id)
 		
 		if not artists:
-			raise commands.ArgumentParsingError("The provided category does not exist")
+			self.cleanup(ctx.guild)
+			return ctx.send("The provided category does not exist")
 		
 		participants = ctx.voice_client.channel.members
 		participants.remove(ctx.me)
+
 		game = QuizGame(ctx, no_songs, artists, participants)
 		self.games[ctx.guild.id] = game
 
@@ -473,7 +560,12 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		if not vc or not vc.is_connected():
 			return await ctx.send('I am not currently playing anything!', delete_after=20)
 
-		await self.cleanup(ctx.guild)
+		try:
+			self.games[ctx.guild.id].end_stopped(ctx.guild)
+		except KeyError:
+			await self.cleanup(ctx.guild)
+
+
 
 	@start.before_invoke
 	async def ensure_voice(self, ctx):
