@@ -57,14 +57,14 @@ class ErrorHandler(commands.Cog, name='errorhandler'):
 				pass
 
 		elif isinstance(error, checks.NotInBotChannel):
-			msg = ('You cannot use commands outside of bot channels, except for !help here in DMs.\n'
-				  'The allowed bot channels are:\n{}')
-			
-			bot_channel_ids = await db.fetchall("SELECT channel_id FROM bot_channels WHERE guild_id = ?",(ctx.guild.id,))
-			bot_channel_ids_list = [str(x[0]) for x in bot_channel_ids]
-			channels = ['<#' + s + ">" for s in bot_channel_ids_list]
-			await ctx.author.send(msg.format('\n'.join(channels)))
-
+			msg = ('You cannot use commands outside of bot channels, except for !help here in DMs.\n')
+			if ctx.guild is None:
+				await ctx.author.send(msg)
+			else:
+				msg += 'The allowed bot channels are:\n'
+				bot_channel_ids = ctx.bot.allowed_channels[ctx.guild.id]
+				channels_str = ['<#' + str(channel_id) + ">" for channel_id in bot_channel_ids]
+				await ctx.author.send(msg.format('\n'.join(channels_str)))
 		else:
 			print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)

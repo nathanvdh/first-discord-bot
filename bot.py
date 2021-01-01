@@ -4,13 +4,17 @@ import asyncio
 import db
 import checks
 
+intents = discord.Intents.default()
+intents.members = True
+
 ##specify default extensions
 initial_extensions = [	'cogs.errorhandler',
 						'cogs.botconfig',
 						'cogs.dad',
 						'cogs.notes',
 						'cogs.moderation',
-						'cogs.decide'
+						'cogs.decide',
+						'cogs.musicquiz'
 					 ]
 
 with open("owner.txt", "r") as owner_file:
@@ -21,12 +25,35 @@ async def get_prefix(bot, message):
 	if message.guild is None:
 		pass
 	else:
-		_prefix = await db.fetchfield("SELECT prefix FROM prefixes WHERE guild_id =?;", (message.guild.id,))
+		_prefix = bot.prefixes[message.guild.id]
+		#_prefix = await db.fetchfield("SELECT prefix FROM prefixes WHERE guild_id =?;", (message.guild.id,))
 		if _prefix:
 			prefix = _prefix
 	return commands.when_mentioned_or(prefix)(bot, message)
 
-bot = commands.Bot(command_prefix=get_prefix, description='A bot by nacho', owner_id=int(owner))
+class MyBot(commands.Bot):
+	def __init__(self):
+		super().__init__(command_prefix=get_prefix, description='A bot by nacho', owner_id=int(owner), intents=intents)
+		self.prefixes = {}
+		self.allowed_channels = {}
+		self.loop.create_task(self.load_from_db())
+
+	async def load_from_db(self):
+		"""Loads necessary data from db to avoid queries on every message"""
+		# Guild prefixes
+		guilds = await db.fetchall("SELECT guild_id, prefix FROM prefixes")
+		for guild in guilds:
+			self.prefixes[guild[0]] = guild[1]
+
+		# Guild bot channels
+		bot_channels = await db.fetchall("SELECT guild_id, channel_id FROM bot_channels;")
+		for bot_channel in bot_channels:
+			self.allowed_channels.setdefault(bot_channel[0], []).append(bot_channel[1])
+
+
+
+
+bot = MyBot()
 
 @bot.event
 async def on_ready():
