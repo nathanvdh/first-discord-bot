@@ -6,6 +6,8 @@ import checks
 
 intents = discord.Intents.default()
 intents.members = True
+intents.voice_states = True
+#intents.presences = True
 
 ##specify default extensions
 initial_extensions = [	'cogs.errorhandler',

@@ -89,8 +89,7 @@ class QuizGame:
 	async def player_loop(self):
 		"""Our main player loop."""
 		await self.bot.wait_until_ready()
-		participants = self._participants
-		for participant in participants:
+		for participant in self._participants:
 				await participant.send('Welcome to Diddly Binb!\nThe game will begin in 10s...')
 		self.next.clear()
 		self._track_ready.clear()
@@ -119,21 +118,31 @@ class QuizGame:
 			self.next.clear()
 			self._track_ready.clear()
 
-			participant_score_list = sorted(participants.items(), key=lambda item: item[1])
-			after_track_str = 'Leaderboard:\n'
-			for participant, score in participant_score_list:
-				after_track_str += f'{participant.name}:\t\t {score}\n'
-			after_track_str += f'\nThe previous song was:\n{source.spotify_link}'
+			participant_score_list = sorted(self._participants.items(), key=lambda item: item[1])
+			after_track_str = '__**Leaderboard:**__\n\n'
+
+			place_prefix =""
+			for place, participant_score in enumerate(participant_score_list):
+				participant, score = participant_score
+				#print(place)
+				if place == 0:
+					place_prefix = ":first_place:"
+				elif place == 1:
+					place_prefix = ":second_place:"
+				elif place == 2:
+					place_prefix = ":third_place:"
+				after_track_str += f'{place_prefix}\t{participant.mention}:\t {score}\n'
+
+			after_track_str += f'\n*The previous song was:*\n{source.spotify_link}'
 			
-			for participant in participants:
-				await participant.send(after_track_str)
+			for participant in self._participants:
+				await participant.send(after_track_str, allowed_mentions=discord.AllowedMentions.none())
 
 		return self.end_queue_complete(self._guild)
 
 	async def listen_to_participants(self):
 		"""Handles messages sent in DMs, scoring and going to next song (maybe)"""
 		def participant(msg):
-			#print(msg.guild)
 			return msg.author in self._participants and not msg.guild
 
 		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
@@ -144,7 +153,7 @@ class QuizGame:
 					#print("Try to queue message\n")
 					await self._guess_queue.put(msg)
 					#print("Queued message\n")
-	
+
 	async def process_guesses(self):
 		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
 			#print("Waiting for new guess to be queued")
@@ -189,13 +198,48 @@ class QuizGame:
 							self.current_track.bonuses_given += 1
 				self._participants[author] += score
 
+	async def listen_for_joins(self):
+		def acheckfunc(member, before, after):
+			return after.channel == self._guild.voice_client.channel
+			#return True
+
+		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+			print("Waiting for player to join...\n")
+			member, before, after = await self.bot.wait_for('voice_state_update', check=acheckfunc)
+			if member in self._participants.keys():
+				print("User is already in the game\n")
+				continue
+			print("New player joined!\n")
+			await self.process_join(member)
+
+	async def process_join(self, member):
+
+		def check(reaction, user):
+			return str(reaction.emoji) in ['🇾', '🇳'] and user == member 
+
+		msg = await member.send('You have joined a channel with an in-progress game of Diddly Binb! Would you like to join? (Y / N)\n15 seconds to decide....')
+		await msg.add_reaction('🇾')
+		await msg.add_reaction('🇳')
+
+		try:
+			reaction, user = await self.bot.wait_for('reaction_add', check=check, timeout=15)
+		except asyncio.TimeoutError:
+			pass
+		else:
+			if str(reaction.emoji) == '🇾':
+				print("Adding new member to game\n")
+				self._participants[member] = 0
+				await member.send('Excellent, enjoy the game')
+			else:
+				pass
+
 	async def begin(self):
 		"""Runs the other 3 loops?"""
 
 		##queue_tracks() is a one-shot
 		self.bot.loop.create_task(self.queue_tracks())
 		
-		loops = [self.player_loop(), self.listen_to_participants(), self.process_guesses()]
+		loops = [self.player_loop(), self.listen_to_participants(), self.process_guesses(), self.listen_for_joins()]
 		for loop in loops:
 			self._tasks.append(self.bot.loop.create_task(loop))
 
@@ -203,8 +247,9 @@ class QuizGame:
 		"""Disconnect and cleanup the player internal"""
 		## Only cancels the listen_to_participant loop as the player_loop returns (is done) after this function returns
 		self._tasks[1].cancel()
-		# Maybe don't cancel this to let the queue finish
-		#self._tasks[2].cancel()
+		# Maybe don't cancel task[2] this to let the queue finish
+		self._tasks[2].cancel()
+		self._tasks[3].cancel()
 		return self.bot.loop.create_task(self._cog.cleanup(guild))
 
 	def end_stopped(self, guild):
@@ -509,7 +554,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 					 FROM artists a
 					 INNER JOIN artist_cats c ON a.artist_id = c.artist_id
 					 WHERE category = ? AND guild_id = ?
-					 ORDER BY a.name;
+					 ORDER BY a.name COLLATE NOCASE;
 				  """
 			vals = (category_name, ctx.guild.id)
 			artist_list = await db.fetchall(sql, vals)
