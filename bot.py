@@ -38,7 +38,9 @@ class MyBot(commands.Bot):
 		super().__init__(command_prefix=get_prefix, description='A bot by nacho', owner_id=int(owner), intents=intents)
 		self.prefixes = {}
 		self.allowed_channels = {}
+		self.spy_client = None
 		self.loop.create_task(self.load_from_db())
+
 
 	async def load_from_db(self):
 		"""Loads necessary data from db to avoid queries on every message"""
@@ -51,8 +53,6 @@ class MyBot(commands.Bot):
 		bot_channels = await db.fetchall("SELECT guild_id, channel_id FROM bot_channels;")
 		for bot_channel in bot_channels:
 			self.allowed_channels.setdefault(bot_channel[0], []).append(bot_channel[1])
-
-
 
 
 bot = MyBot()
@@ -72,6 +72,12 @@ async def on_guild_join(guild):
 @bot.command(aliases=['latency'])
 async def ping(ctx):
 	await ctx.send(f'{round(bot.latency*1000)} ms')
+
+@bot.command()
+@commands.is_owner()
+async def shutdown(ctx):
+	await ctx.bot.spy_client.close()
+	await ctx.bot.logout()
 
 bot.add_check(checks.bot_channel_only)
 
