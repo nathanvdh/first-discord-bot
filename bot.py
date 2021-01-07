@@ -76,8 +76,12 @@ async def ping(ctx):
 @bot.command()
 @commands.is_owner()
 async def shutdown(ctx):
+	print("closing spotify connection")
 	await ctx.bot.spy_client.close_client()
+	print("Logging out")
 	await ctx.bot.logout()
+	print("DONE")
+
 
 bot.add_check(checks.bot_channel_only)
 

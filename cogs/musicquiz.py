@@ -3,23 +3,25 @@ from discord.ext import commands
 
 import asyncio
 from async_timeout import timeout
-from aioconsole import ainput
 
 from functools import partial
 
-import db
+from aioconsole import ainput
 
 import random
 
-import time
+import time as t
 
 import math
 import Levenshtein as lev
 
-from unidecode import unidecode
+import db
 
 from async_spotify import SpotifyApiClient, TokenRenewClass
 from async_spotify.authentification.authorization_flows import AuthorizationCodeFlow
+
+from unidecode import unidecode
+#from cogs.quizgame import QuizGame
 
 replace_list = [ (' & ', ' and '), (' + ', ' and '), (' n ', ' and '), (" 'n' ", ' and '), (' u ', ' you '), ('.', ''), ('-', ''), (',', '')]
 
@@ -41,19 +43,14 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 			artist_names.append(artist_name)
 
 		self.artist_names = {artist_name: [] for artist_name in artist_names}
-		#print(self.artist_names)
 		self.primary_artist = next(iter(self.artist_names.keys()))
 		self.spotify_link = track_data['external_urls']['spotify']
 		self.bonuses_given = 0
-		#print(self.artist_names)
-		#print(self.track_name)
-		# images = track_data['album']['images']
-		# if images:
-		# 	self.album_art = images[0]['url']
+
 
 class QuizGame:
 	"""An instance of a single running music trivia quiz game"""
-	__slots__ = ('bot', '_no_tracks', '_artists', '_participants', '_guild', '_channel', '_cog', 'queue', '_guess_queue', 'next', '_track_ready', '_tracks_played', 'volume', 'current_track', '_track_start_time', '_tasks')
+	__slots__ = ('bot', '_guild', '_channel', '_cog', '_no_tracks', '_artists', '_participants', '_in_progress', 'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
 
 	def __init__(self, ctx, no_tracks: int, artists, in_channel=[]):
 		self.bot = ctx.bot
@@ -65,13 +62,14 @@ class QuizGame:
 		self._artists = artists
 		self._participants = {}
 
+		self._in_progress = True
 		self.queue = asyncio.Queue()
 		self._guess_queue = asyncio.Queue()
 		self.next = asyncio.Event()
 		self._track_ready = asyncio.Event()
-		self._tracks_played = 0 ;
+		#self._tracks_played = 0 ;
 		self.current_track = None
-		self._track_start_time = float(0.0)
+		self._track_start_time = 0.0
 
 		self.volume = .5
 	
@@ -83,12 +81,16 @@ class QuizGame:
 		"""Picks tracks from spotify and queues them"""
 		artist_tracks = {}
 		for i in range(0, self._no_tracks):
-			artist = random.choice(self._artists)
+			randartist = partial(random.choice, self._artists)
+			artist = await self.bot.loop.run_in_executor(None, randartist)
 
 			if not artist_tracks.get(artist):
+				#print("Getting track from spotify")
 				result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
+				#print("Got track")
 				top_tracks = result['tracks']
-				random.shuffle(top_tracks)
+				randtracks = partial(random.shuffle, top_tracks)
+				await self.bot.loop.run_in_executor(None, randtracks)
 				artist_tracks[artist] = top_tracks
 
 			track = artist_tracks[artist].pop()
@@ -105,59 +107,62 @@ class QuizGame:
 			await self.queue.put(source)
 	
 	async def player_loop(self):
-		"""Our main player loop."""
+		"""Main player loop."""
+		print("start of player loop")
 		await self.bot.wait_until_ready()
-		# for participant in self._participants:
-		# 		await participant.send('Welcome to Diddly Binb!\nThe game will begin in 10s...')
+
 		self.next.clear()
 		self._track_ready.clear()
-		await asyncio.sleep(6)
-		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+		print("waiting 5 seconds")
+		await asyncio.sleep(5)
+		while self.queue.empty():
+			print("queue is still empty")
+			await asyncio.sleep(1)
+		while not self.bot.is_closed() and not self.queue.empty() and self._guild.voice_client:
+			print("waiting 10s")
 			await asyncio.sleep(10)
 			try:
 				# Wait for the next song. If we timeout cancel the player and disconnect...
 				async with timeout(30):  # 30 seconds...
+					print("Getting next track")
 					source = await self.queue.get()
 			except asyncio.TimeoutError:
+				print("Geting track timed out")
 				return self.end_queue_complete(self._guild)
 
 			self.current_track = source
 			self._track_ready.set()
+
 			answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names.keys()}'
 			print(answer)
 			source.volume = self.volume
 
-			#self._track_start_time = float(1609930775)
-			#self._track_start_time = float(time.time())
-			#timenow = time.time()
-			print("Going to play song:")
+			self._track_start_time = t.time()
+
+			print("Playing track")
 			self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
-			print("Song is playing")
 			await self.next.wait()
 			print("Song finished playing...")
 			# Make sure the FFmpeg process is cleaned up.
 			await self.bot.loop.run_in_executor(None, source.cleanup)
 
-			#source.cleanup()
-			self._tracks_played += 1
-
 			self.next.clear()
 			self._track_ready.clear()
 
-			#print(self._participants)
+			while not self._guess_queue.empty():
+				print("Guesses remain in queue")
+				await asyncio.sleep(1)
+
 			print("Sorting player data")
 			participant_data_list = sorted(self._participants.items(), key=lambda item: item[1]['score'], reverse=True)
-			#print(participant_data_list)
 			after_track_str = '__**Leaderboard:**__\n\n'
 			print("Enumerating sorted player data")
-			place_prefix =""
 			enum = enumerate(participant_data_list)
+			place_prefix =""
 			print("Looping through players")
 			for place, participant_data in enum:
 				participant, participant_data = participant_data
-				print(participant)
-				print(participant_data)
-				print('\n')
+				print("Got data")
 				if place == 0:
 					place_prefix = ":first_place:"
 				elif place == 1:
@@ -167,12 +172,12 @@ class QuizGame:
 
 				after_track_str += f'{place_prefix}\t{participant.mention}:\t {participant_data["score"]}'
 				gained = participant_data['gained']
-				#time = round(participant_data['time'])
+				guess_time = round(participant_data['guesstime'], 2)
 
 				if gained:
 					after_track_str += f'\t(+{gained})'
-				#if time > 0:
-					#after_track_str += f' ({time}s)'
+				if guess_time > 0:
+					after_track_str += f' ({guess_time}s)'
 				after_track_str += '\n'
 
 			after_track_str += f'\n*The previous song was:*\n{source.spotify_link}'
@@ -181,8 +186,9 @@ class QuizGame:
 				if participant in self._guild.voice_client.channel.members:
 					await participant.send(after_track_str, allowed_mentions=discord.AllowedMentions.none())
 				self._participants[participant]['gained'] = 0
-				#self._participants[participant]['time'] = 0.0
+				self._participants[participant]['guesstime'] = 0.0
 
+		print("Player loop ended")
 		return self.end_queue_complete(self._guild)
 
 	async def listen_to_participants(self):
@@ -190,33 +196,41 @@ class QuizGame:
 		def participant(msg):
 			return msg.author in self._participants.keys() and not msg.guild
 
-		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+		while self._in_progress:
+			#print("inside listen_to_participants")
 			await self._track_ready.wait()
 			msg = await self.bot.wait_for('message', check=participant)
-			#print("Received message\n")
+			print("Received message\n")
 			if self._track_ready.is_set():	
 					#print("Try to queue message\n")
 					await self._guess_queue.put(msg)
-					#print("Queued message\n")
-
+					print("Queued message\n")
+		print("Listen_to_participants ended")
+	
 	async def process_guesses(self):
-		def isMatch(target: str, guess: str):
+
+		async def isMatch(target: str, guess: str):
+			print("isMatch start")
 			thresh = round(math.log(len(target)))
 			if thresh == 0:
 				return target == guess
-			dist = lev.distance(target, guess)
+			print("doing levdistance in bot loop")
+			levdistance = partial(lev.distance, target, guess)
+			dist = await self.bot.loop.run_in_executor(None, levdistance)
 			print(f'Comparing {guess} to: {target}')
 			print(f'thresh: {thresh}\ndist: {dist}')
 			return dist <= thresh
 
-		def artistMatch(guess: str):
+		async def artistMatch(guess: str):
+			print('artistMatch start')
 			for artist in self.current_track.artist_names.keys():
-				artist_match = isMatch(artist, guess)
+				artist_match = await isMatch(artist, guess)
 				if artist_match:
 					return artist
 			return None
 
 		async def on_match(author: discord.Member, bArtist: bool=False, artist=None):
+			print("on_match start")
 			score = 1
 			bonuses_given = self.current_track.bonuses_given
 			artist_or_song = 'song'
@@ -228,7 +242,8 @@ class QuizGame:
 			if not bArtist:
 				self.current_track.guessed_track.append(author)
 				if author in next(iter(self.current_track.artist_names.values())):
-					#self._participants[author]['time'] = time.time() - self._track_start_time
+					print("Someone guessed both")
+					self._participants[author]['guesstime'] = t.time() - self._track_start_time
 					if bonuses_given < 3:
 						score += 3 - bonuses_given
 						self.current_track.bonuses_given += 1
@@ -237,7 +252,8 @@ class QuizGame:
 				self.current_track.artist_names[artist].append(author)
 				if artist == self.current_track.primary_artist:
 					if author in self.current_track.guessed_track:
-						#self._participants[author]['time'] = time.time() - self._track_start_time
+						print("Somone guessed both")
+						self._participants[author]['guesstime'] = t.time() - self._track_start_time
 						if bonuses_given < 3:
 							score += 3 - bonuses_given
 							self.current_track.bonuses_given += 1
@@ -247,8 +263,9 @@ class QuizGame:
 			return
 
 		async def compare_track(guess: str, author: discord.Member):
-			title_match = partial(isMatch, self.current_track.track_name, guess)
-			match = await self.bot.loop.run_in_executor(None, title_match)
+			#title_match = partial(isMatch, self.current_track.track_name, guess)
+			print("compare_track start")
+			match = await isMatch(self.current_track.track_name, guess) #self.bot.loop.run_in_executor(None, title_match)
 			if match and author not in self.current_track.guessed_track:
 				await on_match(author=author)
 				return True
@@ -256,18 +273,19 @@ class QuizGame:
 				return False
 
 		async def compare_artists(guess: str, author: discord.Member):
-			artist_match = partial(artistMatch, guess)
-			artist = await self.bot.loop.run_in_executor(None, artist_match)
+			#artist_match = partial(artistMatch, guess)
+			print("compare_artist start")
+			artist = await artistMatch(guess)#self.bot.loop.run_in_executor(None, artist_match)
 			if artist and author not in self.current_track.artist_names[artist]:
 				await on_match(author=author, bArtist=True, artist=artist)
 				return True
 			else:
 				return False
-		
-		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
-			#print("Waiting for new guess to be queued")
+
+		while self._in_progress:
+			print("Waiting for new guess to be queued")
 			msg = await self._guess_queue.get()
-			#print("Processing guess")
+			print("Processing guess")
 			msg_content = msg.content.casefold()
 			author = msg.author
 			score = 0
@@ -285,12 +303,13 @@ class QuizGame:
 			if await compare_artists(msg_content, author):
 				continue
 			print("Didn't match an artist name\n")#Modifying input and retrying...\n")
-
+		print("left process_guesses loop")
+	
 	async def listen_for_joins(self):
 		def check(member, before, after):
 			return after.channel == self._guild.voice_client.channel and before.channel != self._guild.voice_client.channel and member not in self._participants.keys()
 
-		while not self.bot.is_closed() and self._tracks_played != self._no_tracks and self._guild.voice_client:
+		while self._in_progress:
 			print("Waiting for player to join...")
 			member, before, after = await self.bot.wait_for('voice_state_update', check=check)
 			print("New player joined!\n")
@@ -316,14 +335,14 @@ class QuizGame:
 		else:
 			if str(reaction.emoji) == '🇾':
 				print("Adding new member to game\n")
-				self._participants[member] = {'score': 0, 'gained': 0, 'time': 0.0}
+				self._participants[member] = {'score': 0, 'gained': 0, 'guesstime': 0.0}
 				await member.send('Enjoy the game!')
 			else:
 				await msg.delete()
 				pass
 
 	async def begin(self):
-		"""Runs the other 3 loops?"""
+		"""Runs the other tasks"""
 
 		# queue_tracks() is a one-shot
 		self.bot.loop.create_task(self.queue_tracks())
@@ -335,12 +354,14 @@ class QuizGame:
 	def end_queue_complete(self, guild):
 		"""Disconnect and cleanup the player internal"""
 		## Don't cancel player_loop as it waits for return of this function
+		self._in_progress = False
 		for task in self._tasks[1:]:
 			task.cancel()
 		return self.bot.loop.create_task(self._cog.cleanup(guild))
 
 	def end_stopped(self, guild):
 		"""Disconnect and cleanup the player external"""
+		self._in_progress = False
 		## Cancel all loops
 		for task in self._tasks:
 			task.cancel()
@@ -688,8 +709,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		except KeyError:
 			await self.cleanup(ctx.guild)
 
-
-
 	@start.before_invoke
 	async def ensure_voice(self, ctx):
 		if ctx.voice_client is None:
@@ -697,17 +716,9 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 				await ctx.author.voice.channel.connect()
 			else:
 				await ctx.send('Join a voice channel first.')
-				#raise commands.CommandError('Author not connected to a voice channel.')
+				raise commands.CommandError('Author not connected to a voice channel.')
 		elif ctx.voice_client.is_playing():
 			ctx.voice_client.stop()
-
-	# def leave_after(self, error, ctx):
-	# 	coro = ctx.voice_client.disconnect()
-	# 	fut = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
-	# 	try:
-	# 		fut.result()
-	# 	except:
-	# 		pass
 
 def setup(bot):
 	bot.add_cog(MusicQuiz(bot))
