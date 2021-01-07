@@ -76,7 +76,7 @@ async def ping(ctx):
 @bot.command()
 @commands.is_owner()
 async def shutdown(ctx):
-	await ctx.bot.spy_client.close()
+	await ctx.bot.spy_client.close_client()
 	await ctx.bot.logout()
 
 bot.add_check(checks.bot_channel_only)
