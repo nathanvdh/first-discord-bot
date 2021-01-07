@@ -45,8 +45,8 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 		self.primary_artist = next(iter(self.artist_names.keys()))
 		self.spotify_link = track_data['external_urls']['spotify']
 		self.bonuses_given = 0
-		print(self.artist_names)
-		print(self.track_name)
+		#print(self.artist_names)
+		#print(self.track_name)
 		# images = track_data['album']['images']
 		# if images:
 		# 	self.album_art = images[0]['url']
@@ -71,7 +71,7 @@ class QuizGame:
 		self._track_ready = asyncio.Event()
 		self._tracks_played = 0 ;
 		self.current_track = None
-		self._track_start_time = 0.0
+		self._track_start_time = float(0.0)
 
 		self.volume = .5
 	
@@ -127,10 +127,12 @@ class QuizGame:
 			print(answer)
 			source.volume = self.volume
 
-			self._track_start_time = 999999 #time.time()
-                        #timenow = time.time()
-
+			#self._track_start_time = float(1609930775)
+			#self._track_start_time = float(time.time())
+			#timenow = time.time()
+			print("Going to play song:")
 			self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
+			print("Song is playing")
 			await self.next.wait()
 			print("Song finished playing...")
 			# Make sure the FFmpeg process is cleaned up.
@@ -165,12 +167,12 @@ class QuizGame:
 
 				after_track_str += f'{place_prefix}\t{participant.mention}:\t {participant_data["score"]}'
 				gained = participant_data['gained']
-				time = round(participant_data['time'])
+				#time = round(participant_data['time'])
 
 				if gained:
 					after_track_str += f'\t(+{gained})'
-				if time > 0:
-					after_track_str += f' ({time}s)'
+				#if time > 0:
+					#after_track_str += f' ({time}s)'
 				after_track_str += '\n'
 
 			after_track_str += f'\n*The previous song was:*\n{source.spotify_link}'
@@ -179,7 +181,7 @@ class QuizGame:
 				if participant in self._guild.voice_client.channel.members:
 					await participant.send(after_track_str, allowed_mentions=discord.AllowedMentions.none())
 				self._participants[participant]['gained'] = 0
-				self._participants[participant]['time'] = 0.0
+				#self._participants[participant]['time'] = 0.0
 
 		return self.end_queue_complete(self._guild)
 
@@ -226,7 +228,7 @@ class QuizGame:
 			if not bArtist:
 				self.current_track.guessed_track.append(author)
 				if author in next(iter(self.current_track.artist_names.values())):
-					self._participants[author]['time'] = time.time() - self._track_start_time
+					#self._participants[author]['time'] = time.time() - self._track_start_time
 					if bonuses_given < 3:
 						score += 3 - bonuses_given
 						self.current_track.bonuses_given += 1
@@ -235,7 +237,7 @@ class QuizGame:
 				self.current_track.artist_names[artist].append(author)
 				if artist == self.current_track.primary_artist:
 					if author in self.current_track.guessed_track:
-						self._participants[author]['time'] = time.time() - self._track_start_time
+						#self._participants[author]['time'] = time.time() - self._track_start_time
 						if bonuses_given < 3:
 							score += 3 - bonuses_given
 							self.current_track.bonuses_given += 1
