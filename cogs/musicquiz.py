@@ -112,6 +112,7 @@ class QuizGame:
 
 		self.next.clear()
 		self._track_ready.clear()
+		_tracks_played = 0
 		print("waiting 5 seconds")
 		await asyncio.sleep(5)
 		while self.queue.empty():
@@ -140,6 +141,7 @@ class QuizGame:
 
 			print("Playing track")
 			self._guild.voice_client.play(source, after=lambda _: self.bot.loop.call_soon_threadsafe(self.next.set))
+			_tracks_played += 1
 			await self.next.wait()
 			print("Song finished playing...")
 			# Make sure the FFmpeg process is cleaned up.
@@ -179,7 +181,7 @@ class QuizGame:
 					after_track_str += f' ({guess_time}s)'
 				after_track_str += '\n'
 
-			after_track_str += f'\n*The previous song was:*\n{source.spotify_link}'
+			after_track_str += f'\n*The previous song ({_tracks_played} of {self._no_tracks}) was:*\n{source.spotify_link}'
 
 			for participant in self._participants.keys():
 				if participant in self._guild.voice_client.channel.members:
