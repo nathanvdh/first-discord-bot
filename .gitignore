@@ -1,5 +1,6 @@
-
 *.pyc
 *.db
 *.txt
 data/
+.idea/
+__pycache__/
