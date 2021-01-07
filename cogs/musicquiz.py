@@ -21,7 +21,6 @@ from async_spotify import SpotifyApiClient, TokenRenewClass
 from async_spotify.authentification.authorization_flows import AuthorizationCodeFlow
 
 from unidecode import unidecode
-#from cogs.quizgame import QuizGame
 
 replace_list = [ (' & ', ' and '), (' + ', ' and '), (' n ', ' and '), (" 'n' ", ' and '), (' u ', ' you '), ('.', ''), ('-', ''), (',', '')]
 
@@ -252,7 +251,7 @@ class QuizGame:
 				self.current_track.artist_names[artist].append(author)
 				if artist == self.current_track.primary_artist:
 					if author in self.current_track.guessed_track:
-						print("Somone guessed both")
+						print("Someone guessed both")
 						self._participants[author]['guesstime'] = t.time() - self._track_start_time
 						if bonuses_given < 3:
 							score += 3 - bonuses_given
@@ -353,7 +352,7 @@ class QuizGame:
 
 	def end_queue_complete(self, guild):
 		"""Disconnect and cleanup the player internal"""
-		## Don't cancel player_loop as it waits for return of this function
+		# Don't cancel player_loop as it waits for return of this function
 		self._in_progress = False
 		for task in self._tasks[1:]:
 			task.cancel()
@@ -362,7 +361,7 @@ class QuizGame:
 	def end_stopped(self, guild):
 		"""Disconnect and cleanup the player external"""
 		self._in_progress = False
-		## Cancel all loops
+		# Cancel all loops
 		for task in self._tasks:
 			task.cancel()
 		return self.bot.loop.create_task(self._cog.cleanup(guild))
