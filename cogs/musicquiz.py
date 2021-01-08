@@ -110,8 +110,7 @@ class QuizGame:
 		else:
 			artist_tracks = {}
 			for i in range(0, self._no_tracks):
-				randartist = partial(random.choice, self._artists)
-				artist = await self.bot.loop.run_in_executor(None, randartist)
+				artist = random.choice(self._artists)
 				if not artist_tracks.get(artist):
 					#print("Getting track from spotify")
 					result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
