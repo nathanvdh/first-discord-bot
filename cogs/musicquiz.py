@@ -290,7 +290,7 @@ class QuizGame:
 			score = 0
 			if ';' in msg_content:
 				artist_name, track_name = msg_content.split(';')
-				if await compare_track(track_name, author):
+				if not await compare_track(track_name, author):
 					continue
 				#print("Didn't match song name\n")
 				await compare_artists(artist_name, author)
