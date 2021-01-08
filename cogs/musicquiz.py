@@ -87,8 +87,8 @@ class QuizGame:
 			except spotify_errors.SpotifyAPIError:
 				error_str = "Could not get the tracks from that playlist"
 				print(error_str)
-				self._channel.send(error_str)
-				await self.bot.loop.run_in_executor(None, self.end_stopped, self._guild)
+				await self._channel.send(error_str)
+				return await self.bot.loop.run_in_executor(None, self.end_stopped, self._guild)
 
 			#print(all_tracks)
 			all_tracks_extracted = [thing["track"] for thing in all_tracks["items"]]
