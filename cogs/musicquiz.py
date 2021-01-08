@@ -595,11 +595,13 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			artist_list_list = self.parse_csl(artist_list)
 
 			artist_data = await self.get_artists_from_db(artist_list_list)
-			if not artist_data:
-				ctx.send("Couldn't find that artist, this is dumb search be explicit when removing.")
-				return
-			
-			artist_id_cat_list = [(artist[0], category_name, ctx.guild.id) for artist in artist_data]
+			artist_id_cat_list = []
+			for artist in artist_data:
+				if artist:
+					artist_id_cat_list.append((artist[0], category_name, ctx.guild.id))
+				else:
+					print("Requested artist wasn't found")
+
 			sql = """DELETE FROM artist_cats
 					 WHERE artist_id = ?
 					 AND category = ?
