@@ -91,12 +91,12 @@ class QuizGame:
 			#print(all_tracks)
 			all_tracks_extracted = [thing["track"] for thing in all_tracks["items"]]
 			all_tracks_extracted_shuffle = partial(random.shuffle, all_tracks)
-			print(all_tracks_extracted)
+			#print(all_tracks_extracted)
 			await self.bot.loop.run_in_executor(None, all_tracks_extracted_shuffle)
 
 			for i in range(0, self._no_tracks):
 				track = all_tracks_extracted.pop()
-				print(track)
+				print(track['name'])
 				while not track['preview_url'] and all_tracks_extracted:
 					print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
 					track = all_tracks_extracted.pop()
