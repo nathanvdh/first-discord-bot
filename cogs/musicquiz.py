@@ -19,6 +19,7 @@ import db
 
 from async_spotify import SpotifyApiClient, TokenRenewClass
 from async_spotify.authentification.authorization_flows import AuthorizationCodeFlow
+from async_spotify import spotify_errors
 
 from unidecode import unidecode
 
@@ -80,24 +81,23 @@ class QuizGame:
 	async def queue_tracks(self):
 		"""Picks tracks from spotify and queues them"""
 		if self._playlist_id:
-			all_tracks = await self.bot.spy_client.playlists.get_tracks(playlist_id=self._playlist_id, country='AU', fields='items(track)')
 
-			if "error" in all_tracks:
+			try:
+				all_tracks = await self.bot.spy_client.playlists.get_tracks(playlist_id=self._playlist_id, country='AU', fields='items(track)')
+			except spotify_errors.SpotifyAPIError:
 				error_str = "Could not get the tracks from that playlist"
 				print(error_str)
 				self._channel.send(error_str)
-				return
+				await self.bot.loop.run_in_executor(None, self.end_stopped, self._guild)
 
 			#print(all_tracks)
 			all_tracks_extracted = [thing["track"] for thing in all_tracks["items"]]
 			random.shuffle(all_tracks_extracted)
-			#all_tracks_extracted_shuffle = partial(random.shuffle, all_tracks)
 			#print(all_tracks_extracted)
 			#await self.bot.loop.run_in_executor(None, all_tracks_extracted_shuffle)
 
 			for i in range(0, self._no_tracks):
 				track = all_tracks_extracted.pop()
-				print(track['name'])
 				while not track['preview_url'] and all_tracks_extracted:
 					print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
 					track = all_tracks_extracted.pop()
@@ -117,8 +117,7 @@ class QuizGame:
 					result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
 					#print("Got track")
 					top_tracks = result['tracks']
-					randtracks = partial(random.shuffle, top_tracks)
-					await self.bot.loop.run_in_executor(None, randtracks)
+					random.shuffle(top_tracks)
 					artist_tracks[artist] = top_tracks
 
 				track = artist_tracks[artist].pop()
