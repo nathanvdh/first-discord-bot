@@ -293,7 +293,7 @@ class QuizGame:
 				if await compare_track(track_name, author):
 					continue
 				#print("Didn't match song name\n")
-				await compare_artists(artist_name, author):
+				await compare_artists(artist_name, author)
 				# print("Didn't match artist name\n")
 				continue
 
