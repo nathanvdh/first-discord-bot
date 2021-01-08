@@ -87,7 +87,7 @@ class QuizGame:
 				print(error_str)
 				self._channel.send(error_str)
 				return
-
+			print(all_tracks)
 			all_tracks_shuffle = partial(random.shuffle, all_tracks)
 			await self.bot.loop.run_in_executor(None, all_tracks_shuffle)
 
