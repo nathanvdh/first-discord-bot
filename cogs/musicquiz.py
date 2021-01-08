@@ -762,6 +762,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			await self.cleanup(ctx.guild)
 
 	@start.before_invoke
+	@playlist.before_invoke
 	async def ensure_voice(self, ctx):
 		if ctx.voice_client is None:
 			if ctx.author.voice:
