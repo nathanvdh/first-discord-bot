@@ -49,14 +49,13 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 
 class QuizGame:
 	"""An instance of a single running music trivia quiz game"""
-	__slots__ = ('bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress', 'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
+	__slots__ = ('bot', '_guild', '_channel', '_cog', '_no_tracks', '_artists', '_participants', '_in_progress', 'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
 
-	def __init__(self, ctx, no_tracks: int, artists=None, in_channel=[], playlist_id=None):
+	def __init__(self, ctx, no_tracks: int, artists, in_channel=[]):
 		self.bot = ctx.bot
 		self._guild = ctx.guild
 		self._channel = ctx.channel
 		self._cog = ctx.cog
-		self._playlist_id = playlist_id
 		
 		self._no_tracks = no_tracks
 		self._artists = artists
@@ -79,55 +78,32 @@ class QuizGame:
 	
 	async def queue_tracks(self):
 		"""Picks tracks from spotify and queues them"""
-		if self._playlist_id:
-			all_tracks = await self.bot.spy_client.playlists.get_tracks(playlist_id=self._playlist_id, country='AU', fields='items(track)')
+		artist_tracks = {}
+		for i in range(0, self._no_tracks):
+			randartist = partial(random.choice, self._artists)
+			artist = await self.bot.loop.run_in_executor(None, randartist)
 
-			if "error" in all_tracks:
-				error_str = "Could not get the tracks from that playlist"
-				print(error_str)
-				self._channel.send(error_str)
-				return
+			if not artist_tracks.get(artist):
+				#print("Getting track from spotify")
+				result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
+				#print("Got track")
+				top_tracks = result['tracks']
+				randtracks = partial(random.shuffle, top_tracks)
+				await self.bot.loop.run_in_executor(None, randtracks)
+				artist_tracks[artist] = top_tracks
 
-			all_tracks_shuffle = partial(random.shuffle, all_tracks)
-			await self.bot.loop.run_in_executor(None, all_tracks_shuffle)
-
-			for i in range(0, self._no_tracks):
-				track = all_tracks.pop()
-				while not track['preview_url'] and all_tracks:
-					print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
-					track = all_tracks.pop()
-				if not all_tracks:
-					print(f"Wow there aren't enough tracks in the playlist to fill the queue!")
-					return
-
-				source = SpotifyTrackSource(track)
-				await self.queue.put(source)
-		else:
-			artist_tracks = {}
-			for i in range(0, self._no_tracks):
-				randartist = partial(random.choice, self._artists)
-				artist = await self.bot.loop.run_in_executor(None, randartist)
-				if not artist_tracks.get(artist):
-					#print("Getting track from spotify")
-					result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
-					#print("Got track")
-					top_tracks = result['tracks']
-					randtracks = partial(random.shuffle, top_tracks)
-					await self.bot.loop.run_in_executor(None, randtracks)
-					artist_tracks[artist] = top_tracks
-
+			track = artist_tracks[artist].pop()
+			while not track['preview_url'] and artist_tracks.get(artist):
+				print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
 				track = artist_tracks[artist].pop()
-				while not track['preview_url'] and artist_tracks.get(artist):
-					print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
-					track = artist_tracks[artist].pop()
 
-				if not artist_tracks.get(artist):
-					await self._channel.send(f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
-					self._artists.remove(artist)
-					continue
+			if not artist_tracks.get(artist):
+				await self._channel.send(f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
+				self._artists.remove(artist)
+				continue
 
-				source = SpotifyTrackSource(track)
-				await self.queue.put(source)
+			source = SpotifyTrackSource(track)
+			await self.queue.put(source)
 	
 	async def player_loop(self):
 		"""Main player loop."""
@@ -241,7 +217,7 @@ class QuizGame:
 			#print("doing levdistance in bot loop")
 			levdistance = partial(lev.distance, target, guess)
 			dist = await self.bot.loop.run_in_executor(None, levdistance)
-			print(f'Comparing {guess} to: {target}\tthresh: {thresh} dist: {dist}')
+			print(f'Comparing {guess} to: {target}\tthresh: {thresh}\ndist: {dist}')
 			return dist <= thresh
 
 		async def artistMatch(guess: str):
@@ -693,9 +669,9 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 			await ctx.send(artists_str)
 
-	@musicquiz.group(invoke_without_command=True)
+	@musicquiz.command()
 	async def start(self, ctx, category_name: str, no_songs: int):
-		"""Starts a music trivia game from a specified category
+		"""Starts a music trivia game
 		Parameters:
 		------------
 		category_name : the category you want artists to be chosen from
@@ -711,41 +687,18 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 		category_name = category_name.lower()
 		artists = await self.get_artists_in_category(category_name, ctx.guild.id)
-
+		
 		if not artists:
 			await ctx.send("The provided category does not exist")
 			await self.cleanup(ctx.guild)
 			return
-
+		
 		in_channel = ctx.voice_client.channel.members
 		in_channel.remove(ctx.me)
 
 		game = QuizGame(ctx, no_songs, artists, in_channel)
 		self.games[ctx.guild.id] = game
 
-		await game.begin()
-
-	@start.command()
-	async def playlist(self, ctx, playlist_id: str, no_songs: int):
-		"""Starts a music trivia game from a playlist
-		Parameters:
-		------------
-		playlist_id : the id of the playlist
-		no_songs : the number of songs you want the game to last
-		"""
-		if self.games.get(ctx.guild.id):
-			return ctx.send("A game is already in progress!")
-
-		if not 1 <= no_songs <= 15:
-			await ctx.send("Must provide a number of songs from 1 to 15")
-			await self.cleanup(ctx.guild)
-			return
-
-		in_channel = ctx.voice_client.channel.members
-		in_channel.remove(ctx.me)
-
-		game = QuizGame(ctx, no_tracks=no_songs, in_channel=in_channel, playlist_id=playlist_id)
-		self.games[ctx.guild.id] = game
 		await game.begin()
 
 	@commands.command()
