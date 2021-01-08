@@ -127,7 +127,7 @@ class QuizGame:
 					await self._channel.send(f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
 					self._artists.remove(artist)
 					continue
-
+				print(track)
 				source = SpotifyTrackSource(track)
 				await self.queue.put(source)
 	
