@@ -601,7 +601,8 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 					artist_id_cat_list.append((artist[0], category_name, ctx.guild.id))
 				else:
 					print("Requested artist wasn't found")
-
+			if not artist_id_cat_list:
+				return
 			sql = """DELETE FROM artist_cats
 					 WHERE artist_id = ?
 					 AND category = ?
