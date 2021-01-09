@@ -50,13 +50,14 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 
 class QuizGame:
 	"""An instance of a single running music trivia quiz game"""
-	__slots__ = ('bot', '_guild', '_channel', '_cog', '_no_tracks', '_artists', '_participants', '_in_progress', 'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
+	__slots__ = ('bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress', 'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
 
-	def __init__(self, ctx, no_tracks: int, artists, in_channel=[]):
+	def __init__(self, ctx, no_tracks: int, artists=None, in_channel=[], playlist_id=None):
 		self.bot = ctx.bot
 		self._guild = ctx.guild
 		self._channel = ctx.channel
 		self._cog = ctx.cog
+		self._playlist_id = playlist_id
 		
 		self._no_tracks = no_tracks
 		self._artists = artists
