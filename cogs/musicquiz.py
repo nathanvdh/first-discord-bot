@@ -19,6 +19,7 @@ import db
 
 from async_spotify import SpotifyApiClient, TokenRenewClass
 from async_spotify.authentification.authorization_flows import AuthorizationCodeFlow
+from async_spotify import spotify_errors
 
 from unidecode import unidecode
 
@@ -78,32 +79,51 @@ class QuizGame:
 	
 	async def queue_tracks(self):
 		"""Picks tracks from spotify and queues them"""
-		artist_tracks = {}
-		for i in range(0, self._no_tracks):
-			randartist = partial(random.choice, self._artists)
-			artist = await self.bot.loop.run_in_executor(None, randartist)
+		if self._playlist_id:
+			try:
+				all_tracks = await self.bot.spy_client.playlists.get_tracks(playlist_id=self._playlist_id, country='AU', fields='items(track)')
+			except spotify_errors.SpotifyAPIError:
+				error_str = "Could not get the tracks from that playlist"
+				print(error_str)
+				await self._channel.send(error_str)
+				return await self.bot.loop.run_in_executor(None, self.end_stopped, self._guild)
 
-			if not artist_tracks.get(artist):
-				#print("Getting track from spotify")
-				result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
-				#print("Got track")
-				top_tracks = result['tracks']
-				randtracks = partial(random.shuffle, top_tracks)
-				await self.bot.loop.run_in_executor(None, randtracks)
-				artist_tracks[artist] = top_tracks
+			#print(all_tracks)
+			all_tracks_extracted = [thing["track"] for thing in all_tracks["items"]]
+			random.shuffle(all_tracks_extracted)
+			#print(all_tracks_extracted)
+			#await self.bot.loop.run_in_executor(None, all_tracks_extracted_shuffle)
 
-			track = artist_tracks[artist].pop()
-			while not track['preview_url'] and artist_tracks.get(artist):
-				print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
+			for i in range(0, self._no_tracks):
+				track = all_tracks_extracted.pop()
+				while not track['preview_url'] and all_tracks_extracted:
+					print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
+					track = all_tracks_extracted.pop()
+				if not all_tracks_extracted:
+					print(f"Wow there aren't enough tracks in the playlist to fill the queue!")
+					return
+
+				source = SpotifyTrackSource(track)
+				await self.queue.put(source)
+		else:
+			artist_tracks = {}
+			for i in range(0, self._no_tracks):
+				artist = random.choice(self._artists)
+				if not artist_tracks.get(artist):
+					#print("Getting track from spotify")
+					result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
+					#print("Got track")
+					top_tracks = result['tracks']
+					random.shuffle(top_tracks)
+					artist_tracks[artist] = top_tracks
 				track = artist_tracks[artist].pop()
-
-			if not artist_tracks.get(artist):
-				await self._channel.send(f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
-				self._artists.remove(artist)
-				continue
-
-			source = SpotifyTrackSource(track)
-			await self.queue.put(source)
+				if not artist_tracks.get(artist):
+					await self._channel.send(f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
+					self._artists.remove(artist)
+					continue
+				print(track)
+				source = SpotifyTrackSource(track)
+				await self.queue.put(source)
 	
 	async def player_loop(self):
 		"""Main player loop."""
@@ -506,7 +526,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 	async def get_artists_in_category(self, category_name: str, guild_id: int):
 		if category_name == "all":
-			sql = """SELECT artist_id FROM artist_cats
+			sql = """SELECT DISTINCT artist_id FROM artist_cats
 					 WHERE guild_id = ? ;
 				  """
 			vals = (guild_id,)
@@ -715,6 +735,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 			await self.cleanup(ctx.guild)
 
 	@start.before_invoke
+	@playlist.before_invoke
 	async def ensure_voice(self, ctx):
 		if ctx.voice_client is None:
 			if ctx.author.voice:
