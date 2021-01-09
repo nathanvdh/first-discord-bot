@@ -533,7 +533,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 	async def get_artists_in_category(self, category_name: str, guild_id: int):
 		if category_name == "all":
-			sql = """SELECT DISTINCT artist_id FROM artist_cats
+			sql = """SELECT artist_id FROM artist_cats
 					 WHERE guild_id = ? ;
 				  """
 			vals = (guild_id,)
