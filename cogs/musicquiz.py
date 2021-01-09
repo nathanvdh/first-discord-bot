@@ -689,9 +689,9 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 			await ctx.send(artists_str)
 
-	@musicquiz.command()
+	@musicquiz.group(invoke_without_command=True)
 	async def start(self, ctx, category_name: str, no_songs: int):
-		"""Starts a music trivia game
+		"""Starts a music trivia game from a specified category
 		Parameters:
 		------------
 		category_name : the category you want artists to be chosen from
@@ -707,18 +707,41 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
 		category_name = category_name.lower()
 		artists = await self.get_artists_in_category(category_name, ctx.guild.id)
-		
+
 		if not artists:
 			await ctx.send("The provided category does not exist")
 			await self.cleanup(ctx.guild)
 			return
-		
+
 		in_channel = ctx.voice_client.channel.members
 		in_channel.remove(ctx.me)
 
 		game = QuizGame(ctx, no_songs, artists, in_channel)
 		self.games[ctx.guild.id] = game
 
+		await game.begin()
+
+	@start.command()
+	async def playlist(self, ctx, playlist_id: str, no_songs: int):
+		"""Starts a music trivia game from a playlist
+		Parameters:
+		------------
+		playlist_id : the id of the playlist
+		no_songs : the number of songs you want the game to last
+		"""
+		if self.games.get(ctx.guild.id):
+			return ctx.send("A game is already in progress!")
+
+		if not 1 <= no_songs <= 15:
+			await ctx.send("Must provide a number of songs from 1 to 15")
+			await self.cleanup(ctx.guild)
+			return
+
+		in_channel = ctx.voice_client.channel.members
+		in_channel.remove(ctx.me)
+
+		game = QuizGame(ctx, no_tracks=no_songs, in_channel=in_channel, playlist_id=playlist_id)
+		self.games[ctx.guild.id] = game
 		await game.begin()
 
 	@commands.command()
