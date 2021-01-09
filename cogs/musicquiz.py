@@ -166,7 +166,7 @@ class QuizGame:
 			await self.next.wait()
 			#print("Song finished playing...")
 			# Make sure the FFmpeg process is cleaned up.
-			await self.bot.loop.run_in_executor(None, source.cleanup)
+			source.cleanup()
 
 			self.next.clear()
 			self._track_ready.clear()
