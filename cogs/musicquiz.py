@@ -263,7 +263,7 @@ class QuizGame:
         async def on_match(author: discord.Member, bArtist: bool = False, artist=None):
             async def guessed_both():
                 # print("Someone guessed both")
-                time_diff = t.time() - self._track_start_time
+                time_diff = round(t.time() - self._track_start_time, 2)
                 self._participants[author]['guesstime'] = time_diff
                 time_msg = ''
                 author_mention = author.mention
