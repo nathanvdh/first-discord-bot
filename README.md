@@ -5,7 +5,7 @@ Very WIP
 
 ## About
 Database is SQLite accessed through aiosqlite.
-All commands are limited to configurable 'bot channels' so the bot is only usable in specified channels (my design choice, may change this)
+All commands are limited to configurable 'bot channels' so the bot is only usable in specified channels (my design choice, may change this).
 (small) Multi server functionality (bots in many servers do not, and should not, use SQLite).
 
 ## Current cogs and their features
@@ -18,6 +18,14 @@ All commands are limited to configurable 'bot channels' so the bot is only usabl
 | dad | Respond to "I'm..." with "Hi...I'm [bot name]"
 | moderation | Configure prefix and bot channels per-server
 | botconfig | Load/unload/reload cogs and rename bot
+
+## musicquiz
+Create a category and add a commma separated list of artists to it:
+e.g.
+`!mq add oldies Queen,Abba,David Bowie,Led Zeppelin`
+`!mq play oldies 15`
+Or use a playlist
+`!mq start playlist PLAYLIST_ID 15`
 
 ## Running the bot
 Download source cd to directory and install requirements
