@@ -93,7 +93,6 @@ class QuizGame:
 			all_tracks_extracted = [thing["track"] for thing in all_tracks["items"]]
 			random.shuffle(all_tracks_extracted)
 			#print(all_tracks_extracted)
-			#await self.bot.loop.run_in_executor(None, all_tracks_extracted_shuffle)
 
 			for i in range(0, self._no_tracks):
 				track = all_tracks_extracted.pop()
@@ -250,9 +249,19 @@ class QuizGame:
 			return None
 
 		async def on_match(author: discord.Member, bArtist: bool=False, artist=None):
-			#print("on_match start")
+			def guessed_both():
+				# print("Someone guessed both")
+				time_diff = t.time() - self._track_start_time
+				self._participants[author]['guesstime'] = time_diff
+				bonuses_given = self.current_track.bonuses_given
+				if bonuses_given < 3:
+					self.current_track.bonuses_given += 1
+					return 3 - bonuses_given
+				return 0
+
+			print("on_match start")
 			score = 1
-			bonuses_given = self.current_track.bonuses_given
+
 			artist_or_song = 'song'
 			if bArtist:
 				artist_or_song = 'artist'
@@ -262,22 +271,13 @@ class QuizGame:
 			if not bArtist:
 				self.current_track.guessed_track.append(author)
 				if author in next(iter(self.current_track.artist_names.values())):
-					#print("Someone guessed both")
-					self._participants[author]['guesstime'] = t.time() - self._track_start_time
-					if bonuses_given < 3:
-						score += 3 - bonuses_given
-						self.current_track.bonuses_given += 1
+					score += guessed_both()
 			# Process guessing the artist right
 			else:
 				self.current_track.artist_names[artist].append(author)
 				if artist == self.current_track.primary_artist:
 					if author in self.current_track.guessed_track:
-						#print("Someone guessed both")
-						self._participants[author]['guesstime'] = t.time() - self._track_start_time
-						if bonuses_given < 3:
-							score += 3 - bonuses_given
-							self.current_track.bonuses_given += 1
-			
+						score += guessed_both()
 			self._participants[author]['score'] += score
 			self._participants[author]['gained'] += score
 			return
