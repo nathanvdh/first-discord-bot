@@ -125,6 +125,11 @@ class QuizGame:
 				source = SpotifyTrackSource(track)
 				await self.queue.put(source)
 	
+	async def _send_all(self, all_message: str):
+		for participant in self._participants.keys():
+			if participant in self._guild.voice_client.channel.members:
+				await participant.send(all_message, allowed_mentions=discord.AllowedMentions.none())
+
 	async def player_loop(self):
 		"""Main player loop."""
 		#print("start of player loop")
@@ -201,10 +206,8 @@ class QuizGame:
 				after_track_str += '\n'
 
 			after_track_str += f'\n*The previous song ({_tracks_played} of {self._no_tracks}) was:*\n{source.spotify_link}'
-
+			await self._send_all(after_track_str)
 			for participant in self._participants.keys():
-				if participant in self._guild.voice_client.channel.members:
-					await participant.send(after_track_str, allowed_mentions=discord.AllowedMentions.none())
 				self._participants[participant]['gained'] = 0
 				self._participants[participant]['guesstime'] = 0.0
 
@@ -253,6 +256,17 @@ class QuizGame:
 				# print("Someone guessed both")
 				time_diff = t.time() - self._track_start_time
 				self._participants[author]['guesstime'] = time_diff
+				time_msg = ''
+				author_mention = author.mention
+				if time_diff < 5:
+					time_msg = f'Woah {author_mention} guessed it in {time_diff}, what a nerd :nerd:'
+				elif time_diff < 10:
+					time_msg = f'Great job{author_mention}! They guessed it in {time_diff}'
+				elif time_diff < 20:
+					time_msg = f'{author_mention} finally got it in {time_diff}'
+				elif time_diff < 30:
+					time_msg = f'Wow... {author_mention} got it but it took them {time_diff} :snail:'
+				await self._send_all(time_msg)
 				bonuses_given = self.current_track.bonuses_given
 				if bonuses_given < 3:
 					self.current_track.bonuses_given += 1
@@ -283,20 +297,16 @@ class QuizGame:
 			return
 
 		async def compare_track(guess: str, author: discord.Member):
-			#title_match = partial(isMatch, self.current_track.track_name, guess)
-			#print("compare_track start")
 			match = await isMatch(self.current_track.track_name, guess) #self.bot.loop.run_in_executor(None, title_match)
-			if match and author not in self.current_track.guessed_track:
+			if match:
 				await on_match(author=author)
 				return True
 			else:
 				return False
 
 		async def compare_artists(guess: str, author: discord.Member):
-			#artist_match = partial(artistMatch, guess)
-			#print("compare_artist start")
 			artist = await artistMatch(guess)#self.bot.loop.run_in_executor(None, artist_match)
-			if artist and author not in self.current_track.artist_names[artist]:
+			if artist:
 				await on_match(author=author, bArtist=True, artist=artist)
 				return True
 			else:
@@ -316,12 +326,13 @@ class QuizGame:
 				await compare_artists(artist_name, author)
 				# print("Didn't match artist name\n")
 				continue
-
-			if await compare_track(msg_content, author):
-				continue
+			if author not in self.current_track.guessed_track
+				if await compare_track(msg_content, author):
+					continue
 			#print("Didn't match song name\n")
-			if await compare_artists(msg_content, author):
-				continue
+			if author not in self.current_track.artist_names[artist]
+				if await compare_artists(msg_content, author):
+					continue
 			#print("Didn't match an artist name\n")#Modifying input and retrying...\n")
 		print("left process_guesses loop")
 	
