@@ -12,6 +12,7 @@ All commands are limited to configurable 'bot channels' so the bot is only usabl
 
 | Cog name | Feature |
 |--|--|
+| musicquiz| (The coolest one) A [binb](https://github.com/lpinca/binb) clone in discord based on spotify.
 | notes | Return text from an associated key phrase |
 | decide | Randomly select items from a group |
 | dad | Respond to "I'm..." with "Hi...I'm [bot name]"
