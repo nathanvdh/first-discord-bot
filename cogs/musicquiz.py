@@ -23,7 +23,7 @@ from async_spotify import spotify_errors
 
 from unidecode import unidecode
 
-replace_list = [ (' & ', ' and '), (' + ', ' and '), (' n ', ' and '), (" 'n' ", ' and '), (' u ', ' you '), ('.', ''), ('-', ''), (',', '')]
+replace_list = [ (' & ', ' and '), (' + ', ' and '), (" n' ", ' n '), (" 'n' ", ' n '), (' u ', ' you '), ('.', ''), ('-', ''), (',', '')]
 
 class SpotifyTrackSource(discord.PCMVolumeTransformer):
 	def __init__(self, track_data):
