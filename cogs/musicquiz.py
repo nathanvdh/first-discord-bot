@@ -129,7 +129,7 @@ class QuizGame:
                         f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
                     self._artists.remove(artist)
                     continue
-                print(track)
+                #print(track)
                 source = SpotifyTrackSource(track)
                 await self.queue.put(source)
 
@@ -232,11 +232,11 @@ class QuizGame:
             # print("inside listen_to_participants")
             await self._track_ready.wait()
             msg = await self.bot.wait_for('message', check=participant)
-            print("Received message\n")
+            #print("Received message\n")
             if self._track_ready.is_set():
                 # print("Try to queue message\n")
                 await self._guess_queue.put(msg)
-                print("Queued message\n")
+                #print("Queued message\n")
         print("Listen_to_participants ended")
 
     async def process_guesses(self):
@@ -282,8 +282,8 @@ class QuizGame:
                     return 3 - bonuses_given
                 return 0
 
-            print("on_match start")
-            score = 1
+            #print("on_match start")
+            guess_score = 1
 
             artist_or_song = 'song'
             if bArtist:
@@ -294,15 +294,15 @@ class QuizGame:
             if not bArtist:
                 self.current_track.guessed_track.append(author)
                 if author in next(iter(self.current_track.artist_names.values())):
-                    score += await guessed_both()
+                    guess_score += await guessed_both()
             # Process guessing the artist right
             else:
                 self.current_track.artist_names[artist].append(author)
                 if artist == self.current_track.primary_artist:
                     if author in self.current_track.guessed_track:
-                        score += await guessed_both()
-            self._participants[author]['score'] += score
-            self._participants[author]['gained'] += score
+                        guess_score += await guessed_both()
+            self._participants[author]['score'] += guess_score
+            self._participants[author]['gained'] += guess_score
             return
 
         async def compare_track(guess: str, author: discord.Member):
