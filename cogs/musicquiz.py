@@ -261,7 +261,7 @@ class QuizGame:
             return None
 
         async def on_match(author: discord.Member, bArtist: bool = False, artist=None):
-            def guessed_both():
+            async def guessed_both():
                 # print("Someone guessed both")
                 time_diff = t.time() - self._track_start_time
                 self._participants[author]['guesstime'] = time_diff
@@ -294,13 +294,13 @@ class QuizGame:
             if not bArtist:
                 self.current_track.guessed_track.append(author)
                 if author in next(iter(self.current_track.artist_names.values())):
-                    score += guessed_both()
+                    score += await guessed_both()
             # Process guessing the artist right
             else:
                 self.current_track.artist_names[artist].append(author)
                 if artist == self.current_track.primary_artist:
                     if author in self.current_track.guessed_track:
-                        score += guessed_both()
+                        score += await guessed_both()
             self._participants[author]['score'] += score
             self._participants[author]['gained'] += score
             return
