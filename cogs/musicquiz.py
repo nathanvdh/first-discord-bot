@@ -205,7 +205,7 @@ class QuizGame:
 
                 after_track_str += f'{place_prefix}\t{participant.mention}:\t {participant_data["score"]}'
                 gained = participant_data['gained']
-                guess_time = round(participant_data['guesstime'], 2)
+                guess_time = participant_data['guesstime']
 
                 if gained:
                     after_track_str += f'\t(+{gained})'
