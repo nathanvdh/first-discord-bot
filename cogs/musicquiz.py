@@ -105,6 +105,7 @@ class QuizGame:
                 track = all_tracks_extracted.pop()
                 while not track['preview_url'] and all_tracks_extracted:
                     print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
+                    self.bot.
                     track = all_tracks_extracted.pop()
                 if not all_tracks_extracted:
                     print(f"Wow there aren't enough tracks in the playlist to fill the queue!")
@@ -166,8 +167,8 @@ class QuizGame:
             self.current_track = source
             self._track_ready.set()
 
-            answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names.keys()}'
-            print(answer)
+            #answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names.keys()}'
+            #print(answer)
             source.volume = self.volume
 
             self._track_start_time = t.time()
@@ -183,9 +184,14 @@ class QuizGame:
             self.next.clear()
             self._track_ready.clear()
 
-            while not self._guess_queue.empty():
-                print(f"{self._guess_queue.qsize()} Guesses remain in queue")
-                await asyncio.sleep(1)
+            if not self._guess_queue.empty():
+                queue_size = self._guess_queue.qsize()
+                print(f"{queue_size} guesses remain in queue...waiting and then clearing")
+                await asyncio.sleep(2)
+                for _ in range(self._guess_queue.qsize()):
+                    self._guess_queue.get_nowait()
+                    self._guess_queue.task_done()
+
 
             # print("Sorting player data")
             participant_data_list = sorted(self._participants.items(), key=lambda item: item[1]['score'], reverse=True)
@@ -237,7 +243,7 @@ class QuizGame:
                 # print("Try to queue message\n")
                 await self._guess_queue.put(msg)
                 #print("Queued message\n")
-        print("Listen_to_participants ended")
+        #print("Listen_to_participants ended")
 
     async def process_guesses(self):
 
@@ -344,7 +350,7 @@ class QuizGame:
             if await compare_artists(msg_content, author):
                 continue
         # print("Didn't match an artist name\n")#Modifying input and retrying...\n")
-        print("left process_guesses loop")
+        #print("left process_guesses loop")
 
     async def listen_for_joins(self):
         def check(member, before, after):
