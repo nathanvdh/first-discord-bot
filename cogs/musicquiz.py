@@ -184,7 +184,7 @@ class QuizGame:
             self._track_ready.clear()
 
             while not self._guess_queue.empty():
-                print("Guesses remain in queue")
+                print(f"{self._guess_queue.qsize()} Guesses remain in queue")
                 await asyncio.sleep(1)
 
             # print("Sorting player data")
@@ -242,18 +242,18 @@ class QuizGame:
     async def process_guesses(self):
 
         async def isMatch(target: str, guess: str):
-            # print("isMatch start")
+            print("isMatch start")
             thresh = round(math.log(len(target)))
             if thresh == 0:
                 return target == guess
-            # print("doing levdistance in bot loop")
+            print("doing levdistance in bot loop")
             levdistance = partial(lev.distance, target, guess)
             dist = await self.bot.loop.run_in_executor(None, levdistance)
             print(f'Comparing {guess} to: {target}\tthresh: {thresh}\ndist: {dist}')
             return dist <= thresh
 
         async def artistMatch(guess: str):
-            # print('artistMatch start')
+            print('artistMatch start')
             for artist in self.current_track.artist_names.keys():
                 artist_match = await isMatch(artist, guess)
                 if artist_match:
@@ -262,7 +262,7 @@ class QuizGame:
 
         async def on_match(author: discord.Member, bArtist: bool = False, artist=None):
             async def guessed_both():
-                # print("Someone guessed both")
+                print("Someone guessed both")
                 time_diff = round(t.time() - self._track_start_time, 2)
                 self._participants[author]['guesstime'] = time_diff
                 time_msg = ''
@@ -282,7 +282,7 @@ class QuizGame:
                     return 3 - bonuses_given
                 return 0
 
-            #print("on_match start")
+            print("on_match start")
             guess_score = 1
 
             artist_or_song = 'song'
@@ -303,6 +303,7 @@ class QuizGame:
                         guess_score += await guessed_both()
             self._participants[author]['score'] += guess_score
             self._participants[author]['gained'] += guess_score
+            print('finished processing guess')
             return
 
         async def compare_track(guess: str, author: discord.Member):
