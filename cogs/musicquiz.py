@@ -124,12 +124,18 @@ class QuizGame:
                     random.shuffle(top_tracks)
                     artist_tracks[artist] = top_tracks
                 track = artist_tracks[artist].pop()
+
+                while not track['preview_url'] and artist_tracks.get(artist):
+                    print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
+                    track = artist_tracks[artist].pop()
+
                 if not artist_tracks.get(artist):
                     await self._channel.send(
                         f'None of the top tracks from {track["artists"][0]["name"]} have 30s clips :frowning:, consider removing them from rotation.')
                     self._artists.remove(artist)
                     continue
-                #print(track)
+
+                print(f'Queued track {track["name"]} by artist {track["artists"][0]["name"]}')
                 source = SpotifyTrackSource(track)
                 await self.queue.put(source)
 
@@ -254,7 +260,7 @@ class QuizGame:
             print("doing levdistance in bot loop")
             levdistance = partial(lev.distance, target, guess)
             dist = await self.bot.loop.run_in_executor(None, levdistance)
-            print(f'Comparing {guess} to: {target}\tthresh: {thresh}\ndist: {dist}')
+            print(f'Comparing {guess} to: {target}\tthresh: {thresh} dist: {dist}')
             return dist <= thresh
 
         async def artistMatch(guess: str):
