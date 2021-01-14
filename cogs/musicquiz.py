@@ -105,7 +105,6 @@ class QuizGame:
                 track = all_tracks_extracted.pop()
                 while not track['preview_url'] and all_tracks_extracted:
                     print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
-                    self.bot.
                     track = all_tracks_extracted.pop()
                 if not all_tracks_extracted:
                     print(f"Wow there aren't enough tracks in the playlist to fill the queue!")
