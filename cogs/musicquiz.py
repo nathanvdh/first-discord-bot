@@ -793,8 +793,10 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         except KeyError:
             await self.cleanup(ctx.guild)
 
+    @commands.is_owner()
     @musicquiz.command()
     async def skip(self, ctx):
+        """Skips the currently playing track"""
         try:
             game = self.games[ctx.guild.id]
         except KeyError:
