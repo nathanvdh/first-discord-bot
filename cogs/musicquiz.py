@@ -726,7 +726,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
             await ctx.send(artists_str)
 
     @musicquiz.group(invoke_without_command=True)
-    async def start(self, ctx, category_name: str, no_songs: int):
+    async def start(self, ctx, category_name: str, no_songs: int=15):
         """Starts a music trivia game from a specified category
 		Parameters:
 		------------
