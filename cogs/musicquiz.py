@@ -279,13 +279,13 @@ class QuizGame:
                 time_msg = ''
                 author_mention = author.mention
                 if time_diff < 5:
-                    time_msg = f'Woah {author_mention} guessed it in {time_diff}, what a nerd :nerd:'
+                    time_msg = f'Woah {author_mention} guessed it in {time_diff}s, what a nerd :nerd:'
                 elif time_diff < 10:
-                    time_msg = f'Great job{author_mention}! They guessed it in {time_diff}'
+                    time_msg = f'Great job{author_mention}! They guessed it in {time_diff}s'
                 elif time_diff < 20:
-                    time_msg = f'{author_mention} got it in {time_diff}'
+                    time_msg = f'{author_mention} got it in {time_diff}s'
                 elif time_diff < 30:
-                    time_msg = f'Wow... {author_mention} finally got it but it took them {time_diff} :snail:'
+                    time_msg = f'Wow... {author_mention} finally got it but it took them {time_diff}s :snail:'
                 await self._send_all(time_msg)
                 bonuses_given = self.current_track.bonuses_given
                 if bonuses_given < 3:
