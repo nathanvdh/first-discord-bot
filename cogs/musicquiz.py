@@ -278,9 +278,9 @@ class QuizGame:
                 elif time_diff < 10:
                     time_msg = f'Great job{author_mention}! They guessed it in {time_diff}'
                 elif time_diff < 20:
-                    time_msg = f'{author_mention} finally got it in {time_diff}'
+                    time_msg = f'{author_mention} got it in {time_diff}'
                 elif time_diff < 30:
-                    time_msg = f'Wow... {author_mention} got it but it took them {time_diff} :snail:'
+                    time_msg = f'Wow... {author_mention} finally got it but it took them {time_diff} :snail:'
                 await self._send_all(time_msg)
                 bonuses_given = self.current_track.bonuses_given
                 if bonuses_given < 3:
@@ -775,7 +775,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         self.games[ctx.guild.id] = game
         await game.begin()
 
-    @commands.command()
+    @musicquiz.command()
     async def stop(self, ctx):
         """Stop the an in-progress music quiz"""
         vc = ctx.voice_client
@@ -787,6 +787,23 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
             self.games[ctx.guild.id].end_stopped(ctx.guild)
         except KeyError:
             await self.cleanup(ctx.guild)
+
+    @musicquiz.command()
+    async def skip(self, ctx):
+        try:
+            game = self.games[ctx.guild.id]
+        except KeyError:
+            ctx.send("A game is not currently active", delete_after=20)
+            return
+        vc = ctx.voice_client
+        if not vc or not vc.is_connected():
+            return await ctx.send('I am not currently playing anything!', delete_after=20)
+        if vc.is_paused():
+            pass
+        elif not vc.is_playing():
+            return
+        vc.stop()
+        game.next.set()
 
     @start.before_invoke
     @playlist.before_invoke
