@@ -135,7 +135,7 @@ class QuizGame:
                     self._artists.remove(artist)
                     continue
 
-                print(f'Queued track {track["name"]} by artist {track["artists"][0]["name"]}')
+                print(f'Queued {track["artists"][0]["name"]} - {track["name"]}')
                 source = SpotifyTrackSource(track)
                 await self.queue.put(source)
 
