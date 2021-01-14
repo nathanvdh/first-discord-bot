@@ -802,7 +802,6 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         elif not vc.is_playing():
             return
         vc.stop()
-        game.next.set()
 
     @start.before_invoke
     @playlist.before_invoke
