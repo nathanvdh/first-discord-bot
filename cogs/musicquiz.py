@@ -406,7 +406,7 @@ class QuizGame:
         """Disconnect and cleanup the player internal"""
         # Don't cancel player_loop as it waits for return of this function
         self._in_progress = False
-        await self._send_all(random.choice(goodbyes))
+        self.bot.loop.create_task(self._send_all(random.choice(goodbyes)))
         for task in self._tasks[1:]:
             task.cancel()
         return self.bot.loop.create_task(self._cog.cleanup(guild))
@@ -414,7 +414,7 @@ class QuizGame:
     def end_stopped(self, guild):
         """Disconnect and cleanup the player external"""
         self._in_progress = False
-        await self._send_all(random.choice(goodbyes))
+        self.bot.loop.create_task(self._send_all(random.choice(goodbyes)))
         # Cancel all loops
         for task in self._tasks:
             task.cancel()
