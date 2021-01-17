@@ -624,7 +624,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         # )
         # embed.add_field(name='Added artists:', value=artists_str)
 
-        await ctx.send(artists_str)
+        await ctx.send(artists_msg)
 
     @commands.has_guild_permissions(manage_channels=True)
     @musicquiz.group(invoke_without_command=True)
