@@ -42,7 +42,7 @@ class Dad(commands.Cog, name='bully'):
 			vals = (member.id, ctx.guild.id, forced_nick)
 		else:
 			sql = """UPDATE forced_nicks
-					 SET forced_nick = ?,
+					 SET forced_nick = ?
 					 WHERE user_id = ?
 					 AND guild_id = ? ;"""
 			vals = (forced_nick, member.id, ctx.guild.id)
