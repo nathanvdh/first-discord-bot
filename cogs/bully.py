@@ -26,7 +26,7 @@ class Dad(commands.Cog, name='bully'):
 	async def on_member_update(self, before, after):
 		if before.nick == after.nick:
 			return
-		forced_nick = self.retrieve_nick(after)
+		forced_nick = await self.retrieve_nick(after)
 		if forced_nick is not None:
 			await after.edit(nick=forced_nick)
 		# await after.edit()
