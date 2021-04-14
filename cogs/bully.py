@@ -37,7 +37,7 @@ class Bully(commands.Cog, name='bully'):
 		if member == self.bot.user or member.guild is None:
 			return
 		if ctx.message.author.top_role < member.top_role:
-			await ctx.send("That member has a bigger discord pp than you. Sorry, you can't bully them.")
+			await ctx.send("That member has a bigger discord pp than you. Sorry, you can't bully them. Pick on someone your own size!")
 			return
 
 		if not await self.retrieve_nick(member):
@@ -60,7 +60,7 @@ class Bully(commands.Cog, name='bully'):
 		if not await self.retrieve_nick(member):
 			return
 		elif ctx.message.author.top_role < member.top_role:
-			await ctx.send("That member has a bigger discord pp than you. Sorry, you can't unbully them.")
+			await ctx.send("That member has a bigger discord pp than you. Sorry, you can't stand up to the bully. You are a bystander.")
 			return
 		else:
 			sql = """DELETE FROM forced_nicks
