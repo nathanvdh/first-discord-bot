@@ -31,12 +31,16 @@ class Bully(commands.Cog, name='bully'):
 			await after.edit(nick=forced_nick)
 		# await after.edit()
 
+	@commands.has_guild_permissions(manage_nicknames=True)
 	@commands.command()
 	async def bully(self, ctx, member: discord.Member, *, forced_nick):
 		if member == self.bot.user or member.guild is None:
 			return
+		if ctx.message.author.top_role < member.top_role:
+			await ctx.send("That member has a bigger discord pp than you. Sorry, you can't bully them.")
+			return
 
-		if await self.retrieve_nick(member) is None:
+		if not await self.retrieve_nick(member):
 			sql = """INSERT INTO forced_nicks(user_id, guild_id, forced_nick)
 					 VALUES(?, ?, ?);"""
 			vals = (member.id, ctx.guild.id, forced_nick)
@@ -50,9 +54,13 @@ class Bully(commands.Cog, name='bully'):
 
 		await member.edit(nick=forced_nick)
 
+	@commands.has_guild_permissions(manage_nicknames=True)
 	@commands.command()
 	async def unbully(self, ctx, member: discord.Member):
 		if not await self.retrieve_nick(member):
+			return
+		elif ctx.message.author.top_role < member.top_role:
+			await ctx.send("That member has a bigger discord pp than you. Sorry, you can't unbully them.")
 			return
 		else:
 			sql = """DELETE FROM forced_nicks
