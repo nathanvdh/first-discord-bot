@@ -2,7 +2,7 @@ import discord
 from discord.ext import commands
 import db
 
-class Dad(commands.Cog, name='bully'):
+class Bully(commands.Cog, name='bully'):
 	"""Forces a users nickname"""
 	def __init__(self, bot):
 		self.bot = bot
@@ -32,7 +32,7 @@ class Dad(commands.Cog, name='bully'):
 		# await after.edit()
 
 	@commands.command()
-	async def bully(self, ctx, member: discord.Member, *, forced_nick: str):
+	async def bully(self, ctx, member: discord.Member, *, forced_nick):
 		if member == self.bot.user or member.guild is None:
 			return
 
