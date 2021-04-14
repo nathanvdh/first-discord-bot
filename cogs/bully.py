@@ -38,7 +38,7 @@ class Dad(commands.Cog, name='bully'):
 
 		if await self.retrieve_nick(member) is None:
 			sql = """INSERT INTO forced_nicks(user_id, guild_id, forced_nick)
-					 VALUES(user_id, guild_id, forced_nick);"""
+					 VALUES(?, ?, ?);"""
 			vals = (member.id, ctx.guild.id, forced_nick)
 		else:
 			sql = """UPDATE forced_nicks
