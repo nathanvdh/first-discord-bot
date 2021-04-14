@@ -16,7 +16,7 @@ class Dad(commands.Cog, name='bully'):
 		await db.write(sql)
 
 	async def retrieve_nick(self, member: discord.Member):
-		sql = """SELECT nick FROM forced_nicks
+		sql = """SELECT forced_nick FROM forced_nicks
 				WHERE user_id = ?
 				AND guild_id = ? ;"""
 		vals = (member.id, member.guild.id)
