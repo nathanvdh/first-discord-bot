@@ -63,7 +63,7 @@ class Bully(commands.Cog, name='bully'):
 
 
 def setup(bot):
-	bot.add_cog(Dad(bot))
+	bot.add_cog(Bully(bot))
 
 		
 		
