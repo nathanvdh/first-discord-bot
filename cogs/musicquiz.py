@@ -57,7 +57,10 @@ class QuizGame:
     'bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress',
     'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
 
-    def __init__(self, ctx, no_tracks: int, artists=None, in_channel=[], playlist_id=None):
+    def __init__(self, ctx, no_tracks: int, artists=None, in_channel=None, playlist_id=None):
+        if in_channel is None:
+            in_channel = []
+
         self.bot = ctx.bot
         self._guild = ctx.guild
         self._channel = ctx.channel
@@ -252,18 +255,18 @@ class QuizGame:
     async def process_guesses(self):
 
         async def isMatch(target: str, guess: str):
-            print("isMatch start")
+            #print("isMatch start")
             thresh = round(math.log(len(target)))
             if thresh == 0:
                 return target == guess
-            print("doing levdistance in bot loop")
+            #print("doing levdistance in bot loop")
             levdistance = partial(lev.distance, target, guess)
             dist = await self.bot.loop.run_in_executor(None, levdistance)
-            print(f'Comparing {guess} to: {target}\tthresh: {thresh} dist: {dist}')
+            #print(f'Comparing {guess} to: {target}\tthresh: {thresh} dist: {dist}')
             return dist <= thresh
 
         async def artistMatch(guess: str):
-            print('artistMatch start')
+            #print('artistMatch start')
             for artist in self.current_track.artist_names.keys():
                 artist_match = await isMatch(artist, guess)
                 if artist_match:
@@ -272,7 +275,7 @@ class QuizGame:
 
         async def on_match(author: discord.Member, bArtist: bool = False, artist=None):
             async def guessed_both():
-                print("Someone guessed both")
+                #print("Someone guessed both")
                 time_diff = round(t.time() - self._track_start_time, 2)
                 self._participants[author]['guesstime'] = time_diff
                 time_msg = ''
@@ -292,7 +295,7 @@ class QuizGame:
                     return 3 - bonuses_given
                 return 0
 
-            print("on_match start")
+            #print("on_match start")
             guess_score = 1
 
             artist_or_song = 'song'
@@ -313,7 +316,7 @@ class QuizGame:
                         guess_score += await guessed_both()
             self._participants[author]['score'] += guess_score
             self._participants[author]['gained'] += guess_score
-            print('finished processing guess')
+            #print('finished processing guess')
             return
 
         async def compare_track(guess: str, author: discord.Member):
