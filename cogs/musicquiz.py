@@ -55,7 +55,7 @@ class QuizGame:
     """An instance of a single running music trivia quiz game"""
     __slots__ = (
     'bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress',
-    'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks')
+    'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks', 'sending_to_all')
 
     def __init__(self, ctx, no_tracks: int, artists=None, in_channel=None, playlist_id=None):
         if in_channel is None:
@@ -76,6 +76,7 @@ class QuizGame:
         self._guess_queue = asyncio.Queue()
         self.next = asyncio.Event()
         self._track_ready = asyncio.Event()
+        self.sending_to_all = asyncio.Event()
         # self._tracks_played = 0 ;
         self.current_track = None
         self._track_start_time = 0.0
@@ -142,9 +143,11 @@ class QuizGame:
                 await self.queue.put(source)
 
     async def _send_all(self, all_message: str):
+        self.sending_to_all.clear()
         for participant in self._participants.keys():
             if participant in self._guild.voice_client.channel.members:
                 await participant.send(all_message, allowed_mentions=discord.AllowedMentions.none())
+        self.sending_to_all.set()
 
     async def player_loop(self):
         """Main player loop."""
@@ -233,6 +236,8 @@ class QuizGame:
                 self._participants[participant]['guesstime'] = 0.0
 
         print("Player loop ended")
+        await self._send_all(random.choice(goodbyes))
+        await self.sending_to_all.wait()
         return self.end_queue_complete(self._guild)
 
     async def listen_to_participants(self):
@@ -409,7 +414,7 @@ class QuizGame:
         """Disconnect and cleanup the player internal"""
         # Don't cancel player_loop as it waits for return of this function
         self._in_progress = False
-        self.bot.loop.create_task(self._send_all(random.choice(goodbyes)))
+        #self.bot.loop.create_task()
         for task in self._tasks[1:]:
             task.cancel()
         return self.bot.loop.create_task(self._cog.cleanup(guild))
@@ -417,7 +422,6 @@ class QuizGame:
     def end_stopped(self, guild):
         """Disconnect and cleanup the player external"""
         self._in_progress = False
-        self.bot.loop.create_task(self._send_all(random.choice(goodbyes)))
         # Cancel all loops
         for task in self._tasks:
             task.cancel()
