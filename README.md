@@ -23,7 +23,7 @@ All commands are limited to configurable 'bot channels' so the bot is only usabl
 Create a category and add a commma separated list of artists to it:
 e.g.
 `!mq add oldies Queen,Abba,David Bowie,Led Zeppelin`
-`!mq play oldies 15`
+`!mq start oldies 15`
 Or use a playlist
 `!mq start playlist PLAYLIST_ID 15`
 
