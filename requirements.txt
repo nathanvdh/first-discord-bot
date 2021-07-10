@@ -6,3 +6,4 @@ aioconsole
 fuzzywuzzy
 unidecode
 async-spotify
+python-Levenshtein
