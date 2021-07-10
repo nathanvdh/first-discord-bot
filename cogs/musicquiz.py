@@ -56,7 +56,7 @@ class QuizGame:
     __slots__ = (
         'bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress',
         'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks',
-        'sending_to_all')
+        'sending_to_all', '_refused_members')
 
     def __init__(self, ctx, no_tracks: int, artists=None, in_channel=None, playlist_id=None):
         if in_channel is None:
@@ -71,6 +71,7 @@ class QuizGame:
         self._no_tracks = no_tracks
         self._artists = artists
         self._participants = {}
+        self._refused_members = []
 
         self._in_progress = True
         self.queue = asyncio.Queue()
@@ -366,7 +367,10 @@ class QuizGame:
 
     async def listen_for_joins(self):
         def check(member, before, after):
-            return after.channel == self._guild.voice_client.channel and before.channel != self._guild.voice_client.channel and member not in self._participants.keys()
+            if after.channel == self._guild.voice_client.channel:
+                if member not in self._participants.keys():
+                    if member not in self._refused_members:
+                        return True
 
         while self._in_progress:
             # print("Waiting for player to join...")
@@ -397,6 +401,7 @@ class QuizGame:
                 self._participants[member] = {'score': 0, 'gained': 0, 'guesstime': 0.0}
                 await member.send('Enjoy the game!')
             else:
+                self._refused_members.append(member)
                 await msg.delete()
                 pass
 
@@ -736,7 +741,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
             guild_playlists = await db.fetchcolumn(sql_play, (ctx.guild.id,))
             list_str = 'MusicQuiz categories:\n' + '\n'.join(guild_categories)
-            list_str += 'MusicQuiz playlists:\n' + '\n'.join(guild_playlists)
+            list_str += '\nMusicQuiz playlists:\n' + '\n'.join(guild_playlists)
             await ctx.send(list_str)
 
         else:
