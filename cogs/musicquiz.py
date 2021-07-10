@@ -509,13 +509,14 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 				 FOREIGN KEY (artist_id)
 					REFERENCES artists (artist_id)
 					ON DELETE CASCADE
-				 )
+				 );
 				 
 				 CREATE TABLE IF NOT EXISTS playlists (
 				 playlist_id text,
 				 name text,
 				 guild_id integer,
 				 UNIQUE (playlist_id, name, guild_id)
+				 )
 				 """
 
         await db.writescript(sql)
@@ -605,10 +606,10 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         else:
             return True
 
-    def get_playlist_id(self, internal_name: str, guild_id: int):
+    async def get_playlist_id(self, internal_name: str, guild_id: int):
         sql = """SELECT DISTINCT playlist_id FROM playlists
                  WHERE guild_id = ?
-                 AND playlist_name = ?"""
+                 AND name = ?"""
         return await db.fetchfield(sql, (guild_id, internal_name))
 
     @commands.group(invoke_without_command=True, aliases=['mq'])
@@ -656,7 +657,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         				 VALUES (?, ?, ?)
         			  """
         await db.write(sql, (playlist_id, playlist_name, ctx.guild.id))
-        await ctx.send('** {0} added a new playlist called {1}'.format(ctx.author.name,playlist_name))
+        await ctx.send('** {0} added a new playlist called {1} **'.format(ctx.author.name,playlist_name))
 
     @commands.has_guild_permissions(manage_channels=True)
     @musicquiz.group(invoke_without_command=True)
@@ -721,13 +722,22 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         category_name = category_name.lower()
 
         if not category_name:
-            sql = """SELECT DISTINCT category
+            sql_cat = """SELECT DISTINCT category
 					 FROM artist_cats
 					 WHERE guild_id = ?
 					 ORDER BY category ASC;
 				  """
-            guild_categories = await db.fetchcolumn(sql, (ctx.guild.id,))
-            await ctx.send('MusicQuiz categories:\n' + '\n'.join(guild_categories))
+            guild_categories = await db.fetchcolumn(sql_cat, (ctx.guild.id,))
+
+            sql_play = """SELECT DISTINCT name
+                      FROM playlists
+                      WHERE guild_id = ?
+                      ORDER BY name ASC;"""
+
+            guild_playlists = await db.fetchcolumn(sql_play, (ctx.guild.id,))
+            list_str = 'MusicQuiz categories:\n' + '\n'.join(guild_categories)
+            list_str += 'MusicQuiz playlists:\n' + '\n'.join(guild_playlists)
+            await ctx.send(list_str)
 
         else:
             if category_name == "all":
@@ -804,8 +814,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
             await ctx.send("Must provide a number of songs from 1 to 15")
             await self.cleanup(ctx.guild)
             return
-        playlist_id = self.get_playlist_id(internal_name)
-
+        playlist_id = await self.get_playlist_id(internal_name, ctx.guild.id)
         in_channel = ctx.voice_client.channel.members
         in_channel.remove(ctx.me)
 
