@@ -54,8 +54,9 @@ class SpotifyTrackSource(discord.PCMVolumeTransformer):
 class QuizGame:
     """An instance of a single running music trivia quiz game"""
     __slots__ = (
-    'bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress',
-    'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks', 'sending_to_all')
+        'bot', '_guild', '_channel', '_cog', '_playlist_id', '_no_tracks', '_artists', '_participants', '_in_progress',
+        'queue', '_guess_queue', 'next', '_track_ready', 'current_track', '_track_start_time', 'volume', '_tasks',
+        'sending_to_all')
 
     def __init__(self, ctx, no_tracks: int, artists=None, in_channel=None, playlist_id=None):
         if in_channel is None:
@@ -123,11 +124,11 @@ class QuizGame:
                     # print("Getting track from spotify")
                     result = await self.bot.spy_client.artists.get_top_tracks(artist_id=artist, country='AU', limit=7)
                     # print("Got track")
-                    top_tracks = result['tracks']
+                    top_tracks = result['tracks'][:7]
                     random.shuffle(top_tracks)
                     artist_tracks[artist] = top_tracks
-                track = artist_tracks[artist].pop()
 
+                track = artist_tracks[artist].pop()
                 while not track['preview_url'] and artist_tracks.get(artist):
                     print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
                     track = artist_tracks[artist].pop()
@@ -177,8 +178,8 @@ class QuizGame:
             self.current_track = source
             self._track_ready.set()
 
-            #answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names.keys()}'
-            #print(answer)
+            # answer = f'Track name: {self.current_track.track_name}\n Artists: {self.current_track.artist_names.keys()}'
+            # print(answer)
             source.volume = self.volume
 
             self._track_start_time = t.time()
@@ -201,7 +202,6 @@ class QuizGame:
                 for _ in range(self._guess_queue.qsize()):
                     self._guess_queue.get_nowait()
                     self._guess_queue.task_done()
-
 
             # print("Sorting player data")
             participant_data_list = sorted(self._participants.items(), key=lambda item: item[1]['score'], reverse=True)
@@ -241,7 +241,7 @@ class QuizGame:
         return self.end_queue_complete(self._guild)
 
     async def listen_to_participants(self):
-        """Handles messages sent in DMs, scoring and going to next song (maybe)"""
+        """Listens for particpant DMs and adds their guesses to the queue"""
 
         def participant(msg):
             return msg.author in self._participants.keys() and not msg.guild
@@ -250,28 +250,28 @@ class QuizGame:
             # print("inside listen_to_participants")
             await self._track_ready.wait()
             msg = await self.bot.wait_for('message', check=participant)
-            #print("Received message\n")
+            # print("Received message\n")
             if self._track_ready.is_set():
                 # print("Try to queue message\n")
                 await self._guess_queue.put(msg)
-                #print("Queued message\n")
-        #print("Listen_to_participants ended")
+                # print("Queued message\n")
+        # print("Listen_to_participants ended")
 
     async def process_guesses(self):
 
         async def isMatch(target: str, guess: str):
-            #print("isMatch start")
+            # print("isMatch start")
             thresh = round(math.log(len(target)))
             if thresh == 0:
                 return target == guess
-            #print("doing levdistance in bot loop")
+            # print("doing levdistance in bot loop")
             levdistance = partial(lev.distance, target, guess)
             dist = await self.bot.loop.run_in_executor(None, levdistance)
-            #print(f'Comparing {guess} to: {target}\tthresh: {thresh} dist: {dist}')
+            # print(f'Comparing {guess} to: {target}\tthresh: {thresh} dist: {dist}')
             return dist <= thresh
 
         async def artistMatch(guess: str):
-            #print('artistMatch start')
+            # print('artistMatch start')
             for artist in self.current_track.artist_names.keys():
                 artist_match = await isMatch(artist, guess)
                 if artist_match:
@@ -280,7 +280,7 @@ class QuizGame:
 
         async def on_match(author: discord.Member, bArtist: bool = False, artist=None):
             async def guessed_both():
-                #print("Someone guessed both")
+                # print("Someone guessed both")
                 time_diff = round(t.time() - self._track_start_time, 2)
                 self._participants[author]['guesstime'] = time_diff
                 time_msg = ''
@@ -300,7 +300,7 @@ class QuizGame:
                     return 3 - bonuses_given
                 return 0
 
-            #print("on_match start")
+            # print("on_match start")
             guess_score = 1
 
             artist_or_song = 'song'
@@ -321,7 +321,7 @@ class QuizGame:
                         guess_score += await guessed_both()
             self._participants[author]['score'] += guess_score
             self._participants[author]['gained'] += guess_score
-            #print('finished processing guess')
+            # print('finished processing guess')
             return
 
         async def compare_track(guess: str, author: discord.Member):
@@ -362,7 +362,7 @@ class QuizGame:
             if await compare_artists(msg_content, author):
                 continue
         # print("Didn't match an artist name\n")#Modifying input and retrying...\n")
-        #print("left process_guesses loop")
+        # print("left process_guesses loop")
 
     async def listen_for_joins(self):
         def check(member, before, after):
@@ -414,7 +414,7 @@ class QuizGame:
         """Disconnect and cleanup the player internal"""
         # Don't cancel player_loop as it waits for return of this function
         self._in_progress = False
-        #self.bot.loop.create_task()
+        # self.bot.loop.create_task()
         for task in self._tasks[1:]:
             task.cancel()
         return self.bot.loop.create_task(self._cog.cleanup(guild))
@@ -486,7 +486,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
     async def create_tables(self):
         sql = """CREATE TABLE IF NOT EXISTS artists (
-				 artist_id text PRIMARY KEY,
+                 artist_id text PRIMARY KEY,
 				 name text,
 				 spotify_link text,
 				 image_link text);
@@ -510,7 +510,14 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 					REFERENCES artists (artist_id)
 					ON DELETE CASCADE
 				 )
+				 
+				 CREATE TABLE IF NOT EXISTS playlists (
+				 playlist_id text,
+				 name text,
+				 guild_id integer,
+				 UNIQUE (playlist_id, name, guild_id)
 				 """
+
         await db.writescript(sql)
 
     async def search_artist(self, artist_name: str):
@@ -598,13 +605,19 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         else:
             return True
 
+    def get_playlist_id(self, internal_name: str, guild_id: int):
+        sql = """SELECT DISTINCT playlist_id FROM playlists
+                 WHERE guild_id = ?
+                 AND playlist_name = ?"""
+        return await db.fetchfield(sql, (guild_id, internal_name))
+
     @commands.group(invoke_without_command=True, aliases=['mq'])
     async def musicquiz(self, ctx, category_name=""):
         """Control the music guessing game"""
         await ctx.send_help(ctx.command)
 
     @commands.has_guild_permissions(manage_channels=True)
-    @musicquiz.command()
+    @musicquiz.group(invoke_without_command=True)
     async def add(self, ctx, category_name: str, *, artist_list: str):
         """Add artists to a music category"""
         category_name = category_name.lower()
@@ -633,6 +646,17 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         # embed.add_field(name='Added artists:', value=artists_str)
 
         await ctx.send(artists_msg)
+
+    @commands.has_guild_permissions(manage_channels=True)
+    @add.command(name='playlist')
+    async def add_playlist(self, ctx, playlist_id: str, *, playlist_name: str):
+        playlist_name = playlist_name.lower()
+
+        sql = """INSERT OR IGNORE INTO playlists (playlist_id, name, guild_id)
+        				 VALUES (?, ?, ?)
+        			  """
+        await db.write(sql, (playlist_id, playlist_name, ctx.guild.id))
+        await ctx.send('** {0} added a new playlist called {1}'.format(ctx.author.name,playlist_name))
 
     @commands.has_guild_permissions(manage_channels=True)
     @musicquiz.group(invoke_without_command=True)
@@ -734,7 +758,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
             await ctx.send(artists_str)
 
     @musicquiz.group(invoke_without_command=True)
-    async def start(self, ctx, category_name: str, no_songs: int=15):
+    async def start(self, ctx, category_name: str, no_songs: int = 15):
         """Starts a music trivia game from a specified category
 		Parameters:
 		------------
@@ -766,11 +790,11 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         await game.begin()
 
     @start.command()
-    async def playlist(self, ctx, playlist_id: str, no_songs: int):
+    async def playlist(self, ctx, internal_name: str, no_songs: int = 15):
         """Starts a music trivia game from a playlist
 		Parameters:
 		------------
-		playlist_id : the id of the playlist
+		internal_name : the playlist name the bot was supplied with
 		no_songs : the number of songs you want the game to last
 		"""
         if self.games.get(ctx.guild.id):
@@ -780,6 +804,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
             await ctx.send("Must provide a number of songs from 1 to 15")
             await self.cleanup(ctx.guild)
             return
+        playlist_id = self.get_playlist_id(internal_name)
 
         in_channel = ctx.voice_client.channel.members
         in_channel.remove(ctx.me)
