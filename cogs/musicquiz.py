@@ -112,9 +112,10 @@ class QuizGame:
                     print(f'Track {track["name"]} from artist {track["artists"][0]["name"]} does not have a 30s clip.')
                     track = all_tracks_extracted.pop()
                 if not all_tracks_extracted:
-                    print(f"Wow there aren't enough tracks in the playlist to fill the queue!")
+                    print(f"There aren't enough tracks in the playlist to fill the queue!")
                     return
 
+                print(f'Queued {track["artists"][0]["name"]} - {track["name"]}')
                 source = SpotifyTrackSource(track)
                 await self.queue.put(source)
         else:
@@ -151,6 +152,13 @@ class QuizGame:
                 await participant.send(all_message, allowed_mentions=discord.AllowedMentions.none())
         self.sending_to_all.set()
 
+    async def _send_goodbye(self):
+        self.sending_to_all.clear()
+        for participant in self._participants.keys():
+            if participant in self._guild.voice_client.channel.members:
+                await participant.send(random.choice(goodbyes), allowed_mentions=discord.AllowedMentions.none())
+        self.sending_to_all.set()
+
     async def player_loop(self):
         """Main player loop."""
         # print("start of player loop")
@@ -165,7 +173,7 @@ class QuizGame:
             print("queue is still empty")
             await asyncio.sleep(1)
         while not self.bot.is_closed() and not self.queue.empty() and self._guild.voice_client:
-            print("waiting 10s")
+            #print("waiting 10s")
             await asyncio.sleep(10)
             try:
                 # Wait for the next song. If we timeout cancel the player and disconnect...
@@ -237,7 +245,7 @@ class QuizGame:
                 self._participants[participant]['guesstime'] = 0.0
 
         print("Player loop ended")
-        await self._send_all(random.choice(goodbyes))
+        await self._send_goodbye()
         await self.sending_to_all.wait()
         return self.end_queue_complete(self._guild)
 
@@ -774,10 +782,10 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
     @musicquiz.group(invoke_without_command=True)
     async def start(self, ctx, category_name: str, no_songs: int = 15):
-        """Starts a music trivia game from a specified category
+        """Starts a music trivia game from a specified category or playlist
 		Parameters:
 		------------
-		category_name : the category you want artists to be chosen from
+		category_name : the category/playlist you want artists/songs to be chosen from
 		no_songs : the number of songs you want the game to last
 		"""
         if self.games.get(ctx.guild.id):
@@ -791,17 +799,20 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         category_name = category_name.lower()
         artists = await self.get_artists_in_category(category_name, ctx.guild.id)
 
-        if not artists:
-            await ctx.send("The provided category does not exist")
-            await self.cleanup(ctx.guild)
-            return
-
         in_channel = ctx.voice_client.channel.members
         in_channel.remove(ctx.me)
 
-        game = QuizGame(ctx, no_songs, artists, in_channel)
-        self.games[ctx.guild.id] = game
+        if not artists:
+            playlist_id = await self.get_playlist_id(category_name, ctx.guild.id)
+            if not playlist_id:
+                await ctx.send("Sorry, there is no category or playlist with that name")
+                await self.cleanup(ctx.guild)
+                return
+            game = QuizGame(ctx, no_tracks=no_songs, in_channel=in_channel, playlist_id=playlist_id)
+        else:
+            game = QuizGame(ctx, no_tracks=no_songs, artists=artists, in_channel=in_channel)
 
+        self.games[ctx.guild.id] = game
         await game.begin()
 
     @start.command()
