@@ -820,6 +820,10 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
             await self.cleanup(ctx.guild)
             return
         playlist_id = await self.get_playlist_id(internal_name, ctx.guild.id)
+        if not playlist_id:
+            await ctx.send("Sorry, there is no playlist with that name")
+            await self.cleanup(ctx.guild)
+            return
         in_channel = ctx.voice_client.channel.members
         in_channel.remove(ctx.me)
 
