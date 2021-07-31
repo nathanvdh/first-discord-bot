@@ -664,6 +664,8 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
     @commands.has_guild_permissions(manage_channels=True)
     @add.command(name='playlist')
     async def add_playlist(self, ctx, playlist_id: str, *, playlist_name: str):
+
+        ##TODO Get more information (e.g. link) and store in db, using self.bot.spy_client.playlists.get_one(playlist_id)
         playlist_name = playlist_name.lower()
 
         sql = """INSERT OR IGNORE INTO playlists (playlist_id, name, guild_id)
@@ -730,7 +732,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
         await db.write(sql, (artist_list_list))
 
     @musicquiz.command()
-    async def list(self, ctx, category_name: str = ""):
+    async def list(self, ctx, *, category_name: str = ""):
         """List the artists in a music category"""
         category_name = category_name.lower()
 
@@ -772,7 +774,11 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 
             artist_list = await db.fetchall(sql, vals)
             if not artist_list:
-                await ctx.send('That category does not exist!')
+                str_playlist_id = await self.get_playlist_id(category_name, ctx.guild.id)
+                if str_playlist_id:
+                    await ctx.send(f'https://open.spotify.com/playlist/{str_playlist_id}')
+                else:
+                    await ctx.send('There is no category or playlist with that name')
                 return
             artists_str = ''
             for artist in artist_list:
@@ -786,6 +792,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
 		Parameters:
 		------------
 		category_name : the category/playlist you want artists/songs to be chosen from
+		                if this is multiple words, enclose in double quotes
 		no_songs : the number of songs you want the game to last
 		"""
         if self.games.get(ctx.guild.id):
@@ -818,6 +825,7 @@ class MusicQuiz(commands.Cog, name='musicquiz'):
     @start.command()
     async def playlist(self, ctx, internal_name: str, no_songs: int = 15):
         """Starts a music trivia game from a playlist
+                (only required if a category and playlist name clash)
 		Parameters:
 		------------
 		internal_name : the playlist name the bot was supplied with
