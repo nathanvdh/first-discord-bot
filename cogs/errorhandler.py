@@ -42,12 +42,12 @@ class ErrorHandler(commands.Cog, name='errorhandler'):
 		if isinstance(error, commands.NotOwner):
 			await ctx.send('Only the owner of the bot can use that.')
 
-		if isinstance(error, commands.MissingPermissions):
+		elif isinstance(error, commands.MissingPermissions):
 			perms = '\n'.join(error.missing_perms)
 			msg = 'You do not have the following required permissions to do that:\n' + perms
 			await ctx.send(msg)
-		
-		if isinstance(error, commands.DisabledCommand):
+
+		elif isinstance(error, commands.DisabledCommand):
 			await ctx.send(f'{ctx.command} has been disabled.')
 
 		elif isinstance(error, commands.NoPrivateMessage):
@@ -65,6 +65,11 @@ class ErrorHandler(commands.Cog, name='errorhandler'):
 				bot_channel_ids = ctx.bot.allowed_channels[ctx.guild.id]
 				channels_str = ['<#' + str(channel_id) + ">" for channel_id in bot_channel_ids]
 				await ctx.author.send(msg.format('\n'.join(channels_str)))
+
+		elif isinstance(error, commands.BadArgument):
+			msg = f'Incorrect arguments - see `help {ctx.command}` for the correct syntax.'
+			await ctx.send(msg)
+
 		else:
 			print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
 			traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
